@@ -1,0 +1,261 @@
+<!-- templates/add_edit.html -->
+{% extends "layout.html" %}
+
+{% block title %}{{ title }} - Loan Management System{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>{{ title }}</h2>
+    </div>
+    <div class="card-body">
+        <form method="POST" novalidate>
+            {{ form.csrf_token }}
+            
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="date">{{ form.date.label.text }} <span class="text-danger">*</span></label>
+                        {{ form.date(class="form-control", type="date") }}
+                        {% if form.date.errors %}
+                            {% for error in form.date.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="application_id">{{ form.application_id.label.text }} <span class="text-danger">*</span></label>
+                        {{ form.application_id(class="form-control") }}
+                        {% if form.application_id.errors %}
+                            {% for error in form.application_id.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="customer_name">{{ form.customer_name.label.text }} <span class="text-danger">*</span></label>
+                        {{ form.customer_name(class="form-control") }}
+                        {% if form.customer_name.errors %}
+                            {% for error in form.customer_name.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="dealer_code">{{ form.dealer_code.label.text }} <span class="text-danger">*</span></label>
+                        {{ form.dealer_code(class="form-control") }}
+                        {% if form.dealer_code.errors %}
+                            {% for error in form.dealer_code.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="scheme_name">{{ form.scheme_name.label.text }} <span class="text-danger">*</span></label>
+                        {{ form.scheme_name(class="form-control") }}
+                        {% if form.scheme_name.errors %}
+                            {% for error in form.scheme_name.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="branch_location">{{ form.branch_location.label.text }} <span class="text-danger">*</span></label>
+                        {{ form.branch_location(class="form-control") }}
+                        {% if form.branch_location.errors %}
+                            {% for error in form.branch_location.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="product_type">{{ form.product_type.label.text }} <span class="text-danger">*</span></label>
+                        {{ form.product_type(class="form-control") }}
+                        {% if form.product_type.errors %}
+                            {% for error in form.product_type.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="loan_amount">{{ form.loan_amount.label.text }} <span class="text-danger">*</span></label>
+                        {{ form.loan_amount(class="form-control", step="0.01") }}
+                        {% if form.loan_amount.errors %}
+                            {% for error in form.loan_amount.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="payment_amount">{{ form.payment_amount.label.text }} <span class="text-danger">*</span></label>
+                        {{ form.payment_amount(class="form-control", step="0.01") }}
+                        {% if form.payment_amount.errors %}
+                            {% for error in form.payment_amount.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="processing_fee">{{ form.processing_fee.label.text }} <span class="text-danger">*</span></label>
+                        {{ form.processing_fee(class="form-control", step="0.01") }}
+                        {% if form.processing_fee.errors %}
+                            {% for error in form.processing_fee.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="rto">{{ form.rto.label.text }} <span class="text-danger">*</span></label>
+                        {{ form.rto(class="form-control", step="0.01") }}
+                        {% if form.rto.errors %}
+                            {% for error in form.rto.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="vap_amount">{{ form.vap_amount.label.text }} <span class="text-danger">*</span></label>
+                        {{ form.vap_amount(class="form-control", step="0.01") }}
+                        {% if form.vap_amount.errors %}
+                            {% for error in form.vap_amount.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <h4 class="mt-4 mb-3">Beneficiary Details</h4>
+            
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="beneficiary_name">{{ form.beneficiary_name.label.text }} <span class="text-danger">*</span></label>
+                        {{ form.beneficiary_name(class="form-control") }}
+                        {% if form.beneficiary_name.errors %}
+                            {% for error in form.beneficiary_name.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="beneficiary_account_number">{{ form.beneficiary_account_number.label.text }} <span class="text-danger">*</span></label>
+                        {{ form.beneficiary_account_number(class="form-control") }}
+                        {% if form.beneficiary_account_number.errors %}
+                            {% for error in form.beneficiary_account_number.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="beneficiary_ifsc">{{ form.beneficiary_ifsc.label.text }} <span class="text-danger">*</span></label>
+                        {{ form.beneficiary_ifsc(class="form-control") }}
+                        {% if form.beneficiary_ifsc.errors %}
+                            {% for error in form.beneficiary_ifsc.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="bank_name">{{ form.bank_name.label.text }} <span class="text-danger">*</span></label>
+                        {{ form.bank_name(class="form-control") }}
+                        {% if form.bank_name.errors %}
+                            {% for error in form.bank_name.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="branch_name">{{ form.branch_name.label.text }} <span class="text-danger">*</span></label>
+                        {{ form.branch_name(class="form-control") }}
+                        {% if form.branch_name.errors %}
+                            {% for error in form.branch_name.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <h4 class="mt-4 mb-3">Workflow</h4>
+            
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="maker">{{ form.maker.label.text }} <span class="text-danger">*</span></label>
+                        {{ form.maker(class="form-control") }}
+                        {% if form.maker.errors %}
+                            {% for error in form.maker.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="checker">{{ form.checker.label.text }} <span class="text-danger">*</span></label>
+                        {{ form.checker(class="form-control") }}
+                        {% if form.checker.errors %}
+                            {% for error in form.checker.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="author">{{ form.author.label.text }} <span class="text-danger">*</span></label>
+                        {{ form.author(class="form-control") }}
+                        {% if form.author.errors %}
+                            {% for error in form.author.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group mt-4">
+                <button type="
