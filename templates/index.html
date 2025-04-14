@@ -27,7 +27,7 @@
     <div class="card-body">
         <div class="row text-center">
             <div class="col-md-2">
-                <div class="card bg-secondary text-white mb-3">
+                <div class="card status-card bg-draft text-white mb-3">
                     <div class="card-body py-2">
                         <h3 class="mb-0">{{ status_counts.draft }}</h3>
                         <div>Draft</div>
@@ -35,7 +35,7 @@
                 </div>
             </div>
             <div class="col-md-2">
-                <div class="card bg-warning text-dark mb-3">
+                <div class="card status-card bg-pending-checker text-dark mb-3">
                     <div class="card-body py-2">
                         <h3 class="mb-0">{{ status_counts.pending_checker }}</h3>
                         <div>Pending Checker</div>
@@ -43,7 +43,7 @@
                 </div>
             </div>
             <div class="col-md-2">
-                <div class="card bg-info text-white mb-3">
+                <div class="card status-card bg-pending-author text-dark mb-3">
                     <div class="card-body py-2">
                         <h3 class="mb-0">{{ status_counts.pending_author }}</h3>
                         <div>Pending Author</div>
@@ -51,7 +51,7 @@
                 </div>
             </div>
             <div class="col-md-2">
-                <div class="card bg-success text-white mb-3">
+                <div class="card status-card bg-approved text-white mb-3">
                     <div class="card-body py-2">
                         <h3 class="mb-0">{{ status_counts.approved }}</h3>
                         <div>Approved</div>
@@ -59,7 +59,7 @@
                 </div>
             </div>
             <div class="col-md-2">
-                <div class="card bg-danger text-white mb-3">
+                <div class="card status-card bg-rejected text-white mb-3">
                     <div class="card-body py-2">
                         <h3 class="mb-0">{{ status_counts.rejected }}</h3>
                         <div>Rejected</div>
@@ -67,7 +67,7 @@
                 </div>
             </div>
             <div class="col-md-2">
-                <div class="card bg-primary text-white mb-3">
+                <div class="card status-card bg-primary text-white mb-3">
                     <div class="card-body py-2">
                         <h3 class="mb-0">{{ status_counts.total }}</h3>
                         <div>Total</div>
@@ -150,15 +150,15 @@
                                 <td>{{ loan.product_type }}</td>
                                 <td>
                                     {% if loan.status == 'draft' %}
-                                        <span class="badge bg-secondary">Draft</span>
+                                        <span class="badge bg-draft">Draft</span>
                                     {% elif loan.status == 'pending_checker' %}
-                                        <span class="badge bg-warning text-dark">Pending Checker</span>
+                                        <span class="badge bg-pending-checker text-dark">Pending Checker</span>
                                     {% elif loan.status == 'pending_author' %}
-                                        <span class="badge bg-info">Pending Author</span>
+                                        <span class="badge bg-pending-author text-dark">Pending Author</span>
                                     {% elif loan.status == 'approved' %}
-                                        <span class="badge bg-success">Approved</span>
+                                        <span class="badge bg-approved">Approved</span>
                                     {% elif loan.status == 'rejected' %}
-                                        <span class="badge bg-danger">Rejected</span>
+                                        <span class="badge bg-rejected">Rejected</span>
                                     {% endif %}
                                 </td>
                                 <td>

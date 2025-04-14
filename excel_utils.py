@@ -16,7 +16,7 @@ def add_header_formats(workbook):
     header_format = workbook.add_format({
         'bold': True,
         'font_color': 'white',
-        'bg_color': '#0d6efd',  # Bootstrap primary color
+        'bg_color': '#3a506b',  # Custom primary color
         'border': 1,
         'align': 'center',
         'valign': 'vcenter'
@@ -57,37 +57,37 @@ def add_data_formats(workbook):
         'valign': 'vcenter'
     })
 
-    # Status formats
+    # Status formats with our custom color scheme
     status_formats = {
         'draft': workbook.add_format({
             'border': 1,
-            'bg_color': '#6c757d',  # Secondary
+            'bg_color': '#6c757d',  # Gray
             'font_color': 'white',
             'align': 'center',
             'valign': 'vcenter'
         }),
         'pending_checker': workbook.add_format({
             'border': 1,
-            'bg_color': '#0dcaf0',  # Info
+            'bg_color': '#e9c46a',  # Muted gold
             'align': 'center',
             'valign': 'vcenter'
         }),
         'pending_author': workbook.add_format({
             'border': 1,
-            'bg_color': '#ffc107',  # Warning
+            'bg_color': '#81b29a',  # Sage green
             'align': 'center',
             'valign': 'vcenter'
         }),
         'approved': workbook.add_format({
             'border': 1,
-            'bg_color': '#198754',  # Success
+            'bg_color': '#588b8b',  # Teal green
             'font_color': 'white',
             'align': 'center',
             'valign': 'vcenter'
         }),
         'rejected': workbook.add_format({
             'border': 1,
-            'bg_color': '#dc3545',  # Danger
+            'bg_color': '#bc6c25',  # Burnt orange
             'font_color': 'white',
             'align': 'center',
             'valign': 'vcenter'

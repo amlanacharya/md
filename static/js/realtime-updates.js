@@ -5,9 +5,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get the current page's loan IDs
         const loanRows = document.querySelectorAll('.clickable-row');
         if (loanRows.length === 0) return;
-        
+
         const loanIds = Array.from(loanRows).map(row => row.dataset.loanId);
-        
+
         // Make an AJAX request to check for updates
         fetch('/api/check-updates', {
             method: 'POST',
@@ -27,30 +27,33 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Update status badge
                         const statusCell = row.querySelector('td:nth-child(7)');
                         if (statusCell) {
-                            let badgeClass = 'bg-secondary';
+                            let badgeClass = 'bg-draft';
                             let statusText = 'Draft';
-                            
+                            let textClass = '';
+
                             switch (update.status) {
                                 case 'pending_checker':
-                                    badgeClass = 'bg-warning text-dark';
+                                    badgeClass = 'bg-pending-checker';
+                                    textClass = 'text-dark';
                                     statusText = 'Pending Checker';
                                     break;
                                 case 'pending_author':
-                                    badgeClass = 'bg-info';
+                                    badgeClass = 'bg-pending-author';
+                                    textClass = 'text-dark';
                                     statusText = 'Pending Author';
                                     break;
                                 case 'approved':
-                                    badgeClass = 'bg-success';
+                                    badgeClass = 'bg-approved';
                                     statusText = 'Approved';
                                     break;
                                 case 'rejected':
-                                    badgeClass = 'bg-danger';
+                                    badgeClass = 'bg-rejected';
                                     statusText = 'Rejected';
                                     break;
                             }
-                            
-                            statusCell.innerHTML = `<span class="badge ${badgeClass}">${statusText}</span>`;
-                            
+
+                            statusCell.innerHTML = `<span class="badge ${badgeClass} ${textClass}">${statusText}</span>`;
+
                             // Highlight the row to indicate an update
                             row.classList.add('bg-light-yellow');
                             setTimeout(() => {
@@ -59,7 +62,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
                 });
-                
+
                 // Show notification
                 if (data.updates.length > 0) {
                     showNotification(`${data.updates.length} loan application(s) updated`);
@@ -68,15 +71,15 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => console.error('Error checking for updates:', error));
     }
-    
+
     // Function to show notification
     function showNotification(message) {
         const notification = document.createElement('div');
-        notification.className = 'toast align-items-center text-white bg-primary border-0';
+        notification.className = 'toast align-items-center text-white border-0';
         notification.setAttribute('role', 'alert');
         notification.setAttribute('aria-live', 'assertive');
         notification.setAttribute('aria-atomic', 'true');
-        
+
         notification.innerHTML = `
             <div class="d-flex">
                 <div class="toast-body">
@@ -85,7 +88,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
         `;
-        
+
         const toastContainer = document.getElementById('toast-container');
         if (!toastContainer) {
             const container = document.createElement('div');
@@ -93,15 +96,15 @@ document.addEventListener('DOMContentLoaded', function() {
             container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
             document.body.appendChild(container);
         }
-        
+
         document.getElementById('toast-container').appendChild(notification);
         const toast = new bootstrap.Toast(notification);
         toast.show();
     }
-    
+
     // Check for updates every 30 seconds
     setInterval(checkForUpdates, 30000);
-    
+
     // Add CSS for highlight effect
     const style = document.createElement('style');
     style.textContent = `

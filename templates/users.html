@@ -45,7 +45,7 @@
                                 <td>{{ user.username }}</td>
                                 <td>{{ user.email }}</td>
                                 <td>
-                                    <span class="badge {% if user.role == 'maker' %}bg-secondary{% elif user.role == 'checker' %}bg-info{% elif user.role == 'author' %}bg-success{% endif %}">
+                                    <span class="badge {% if user.role == 'maker' %}bg-draft{% elif user.role == 'checker' %}bg-pending-checker text-dark{% elif user.role == 'author' %}bg-approved{% endif %}">
                                         {{ user.role | capitalize }}
                                     </span>
                                 </td>
@@ -60,16 +60,16 @@
                                 {% endif %}
                                 <td>
                                     {% if user.available %}
-                                        <span class="badge bg-success">Available</span>
+                                        <span class="badge bg-approved">Available</span>
                                     {% else %}
-                                        <span class="badge bg-warning text-dark">Unavailable</span>
+                                        <span class="badge bg-pending-checker text-dark">Unavailable</span>
                                     {% endif %}
                                 </td>
                                 <td>
                                     {% if user.active %}
-                                        <span class="badge bg-success">Active</span>
+                                        <span class="badge bg-approved">Active</span>
                                     {% else %}
-                                        <span class="badge bg-danger">Inactive</span>
+                                        <span class="badge bg-rejected">Inactive</span>
                                     {% endif %}
                                 </td>
                                 <td>

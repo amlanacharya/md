@@ -30,15 +30,15 @@
             <div>
                 <h2>
                     {% if loan.status == 'draft' %}
-                        <span class="badge bg-secondary workflow-badge">Draft</span>
+                        <span class="badge bg-draft workflow-badge">Draft</span>
                     {% elif loan.status == 'pending_checker' %}
-                        <span class="badge bg-warning text-dark workflow-badge">Pending Checker Approval</span>
+                        <span class="badge bg-pending-checker text-dark workflow-badge">Pending Checker Approval</span>
                     {% elif loan.status == 'pending_author' %}
-                        <span class="badge bg-info workflow-badge">Pending Final Approval</span>
+                        <span class="badge bg-pending-author text-dark workflow-badge">Pending Final Approval</span>
                     {% elif loan.status == 'approved' %}
-                        <span class="badge bg-success workflow-badge">Approved</span>
+                        <span class="badge bg-approved workflow-badge">Approved</span>
                     {% elif loan.status == 'rejected' %}
-                        <span class="badge bg-danger workflow-badge">Rejected</span>
+                        <span class="badge bg-rejected workflow-badge">Rejected</span>
                     {% endif %}
                 </h2>
                 <p class="mb-0">

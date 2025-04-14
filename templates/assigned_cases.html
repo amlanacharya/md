@@ -62,15 +62,15 @@
                         {% endif %}
                         <td>
                             {% if app.status == 'draft' %}
-                                <span class="badge bg-secondary">Draft</span>
+                                <span class="badge bg-draft">Draft</span>
                             {% elif app.status == 'pending_checker' %}
-                                <span class="badge bg-info">Pending Checker</span>
+                                <span class="badge bg-pending-checker text-dark">Pending Checker</span>
                             {% elif app.status == 'pending_author' %}
-                                <span class="badge bg-warning">Pending Author</span>
+                                <span class="badge bg-pending-author text-dark">Pending Author</span>
                             {% elif app.status == 'approved' %}
-                                <span class="badge bg-success">Approved</span>
+                                <span class="badge bg-approved">Approved</span>
                             {% elif app.status == 'rejected' %}
-                                <span class="badge bg-danger">Rejected</span>
+                                <span class="badge bg-rejected">Rejected</span>
                             {% endif %}
                         </td>
                         <td>
