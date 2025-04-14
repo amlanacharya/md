@@ -12,8 +12,8 @@
 </div>
 
 <div class="card">
-    <div class="card-header">
-        <h2>All Users</h2>
+    <div class="card-header bg-primary text-white">
+        <h2 class="mb-0">All Users</h2>
     </div>
     <div class="card-body">
         <div class="table-responsive">
@@ -36,7 +36,7 @@
                                 <td>{{ user.username }}</td>
                                 <td>{{ user.email }}</td>
                                 <td>
-                                    <span class="badge {% if user.role == 'maker' %}bg-primary{% elif user.role == 'checker' %}bg-info{% elif user.role == 'author' %}bg-success{% endif %}">
+                                    <span class="badge {% if user.role == 'maker' %}bg-secondary{% elif user.role == 'checker' %}bg-info{% elif user.role == 'author' %}bg-success{% endif %}">
                                         {{ user.role | capitalize }}
                                     </span>
                                 </td>

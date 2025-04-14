@@ -3,7 +3,6 @@
 # and creates default users for each role
 
 from app import app, db, User
-from werkzeug.security import generate_password_hash
 
 def init_db():
     with app.app_context():
@@ -24,7 +23,7 @@ def init_db():
             checker = User(
                 username='checker',
                 email='checker@example.com',
-                password='admin123',
+                password='checker123',
                 role='checker'
             )
             db.session.add(checker)
@@ -33,7 +32,7 @@ def init_db():
             maker = User(
                 username='maker',
                 email='maker@example.com',
-                password='admin123',
+                password='maker123',
                 role='maker'
             )
             db.session.add(maker)
@@ -42,11 +41,9 @@ def init_db():
         db.session.commit()
         
         print("Database initialized with default users!")
-        print("Admin - Username: admin, Password: adminpassword")
-        print("Checker - Username: checker, Password: checkerpassword")
-        print("Maker - Username: maker, Password: makerpassword")
-
-
+        print("Admin - Username: admin, Password: admin123")
+        print("Checker - Username: checker, Password: checker123")
+        print("Maker - Username: maker, Password: maker123")
 
 if __name__ == '__main__':
     init_db()
