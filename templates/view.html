@@ -50,15 +50,29 @@
                         This application has been fully approved.
                     {% elif loan.status == 'rejected' %}
                         This application has been rejected.
+                        {% if loan.rejection_reason %}
+                            <div class="alert alert-danger mt-2">
+                                <strong>Rejection Reason:</strong> {{ loan.rejection_reason }}
+                                <div class="mt-1 small">
+                                    <strong>Rejected by:</strong> {{ loan.rejected_by }} on {{ loan.status_changed_at.strftime('%Y-%m-%d %H:%M:%S') if loan.status_changed_at else 'Unknown date' }}
+                                </div>
+                            </div>
+                        {% endif %}
                     {% endif %}
                 </p>
             </div>
-            
+
             <!-- Action buttons -->
             {% if current_user.is_checker() and loan.status == 'pending_checker' %}
                 <div>
-                    <a href="{{ url_for('edit_loan', id=loan.id) }}" class="btn btn-success">
-                        <i class="bi bi-check-circle"></i> Review & Approve
+                    <a href="{{ url_for('edit_loan', id=loan.id) }}" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> Review Application
+                    </a>
+                </div>
+            {% elif current_user.is_author() and loan.status == 'pending_author' %}
+                <div>
+                    <a href="{{ url_for('edit_loan', id=loan.id) }}" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> Review Application
                     </a>
                 </div>
             {% endif %}

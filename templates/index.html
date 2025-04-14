@@ -11,17 +11,110 @@
     </a>
 </div>
 
+<!-- Dashboard Stats -->
+{% if status_counts %}
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">Dashboard</h5>
+    </div>
+    <div class="card-body">
+        <div class="row text-center">
+            <div class="col-md-2">
+                <div class="card bg-secondary text-white mb-3">
+                    <div class="card-body py-2">
+                        <h3 class="mb-0">{{ status_counts.draft }}</h3>
+                        <div>Draft</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-warning text-dark mb-3">
+                    <div class="card-body py-2">
+                        <h3 class="mb-0">{{ status_counts.pending_checker }}</h3>
+                        <div>Pending Checker</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-info text-white mb-3">
+                    <div class="card-body py-2">
+                        <h3 class="mb-0">{{ status_counts.pending_author }}</h3>
+                        <div>Pending Author</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-success text-white mb-3">
+                    <div class="card-body py-2">
+                        <h3 class="mb-0">{{ status_counts.approved }}</h3>
+                        <div>Approved</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-danger text-white mb-3">
+                    <div class="card-body py-2">
+                        <h3 class="mb-0">{{ status_counts.rejected }}</h3>
+                        <div>Rejected</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-primary text-white mb-3">
+                    <div class="card-body py-2">
+                        <h3 class="mb-0">{{ status_counts.total }}</h3>
+                        <div>Total</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="card">
     <div class="card-header">
-        <h2>
-            {% if current_user.is_maker() %}
-                My Loan Applications
-            {% elif current_user.is_checker() %}
-                Loans Pending Review
-            {% else %}
-                All Loan Applications
-            {% endif %}
-        </h2>
+        <div class="d-flex justify-content-between align-items-center">
+            <h2>
+                {% if current_user.is_maker() %}
+                    My Loan Applications
+                {% elif current_user.is_checker() %}
+                    Loans Pending Review
+                {% else %}
+                    All Loan Applications
+                {% endif %}
+            </h2>
+            <div>
+                <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="false" aria-controls="filterCollapse">
+                    <i class="bi bi-funnel"></i> Filter & Search
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="collapse" id="filterCollapse">
+        <div class="card-body bg-light">
+            <form method="GET" action="{{ url_for('index') }}" class="row g-3">
+                <div class="col-md-4">
+                    <label for="status" class="form-label">Status</label>
+                    <select name="status" id="status" class="form-select">
+                        <option value="" {% if not status_filter %}selected{% endif %}>All Statuses</option>
+                        <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Draft</option>
+                        <option value="pending_checker" {% if status_filter == 'pending_checker' %}selected{% endif %}>Pending Checker</option>
+                        <option value="pending_author" {% if status_filter == 'pending_author' %}selected{% endif %}>Pending Author</option>
+                        <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
+                        <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Rejected</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="search" class="form-label">Search</label>
+                    <input type="text" class="form-control" id="search" name="search" placeholder="Search by customer name, application ID, or product type" value="{{ search_term }}">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2"><i class="bi bi-search"></i> Search</button>
+                    <a href="{{ url_for('index') }}" class="btn btn-secondary"><i class="bi bi-x-circle"></i> Clear</a>
+                </div>
+            </form>
+        </div>
     </div>
     <div class="card-body">
         <div class="table-responsive">
@@ -41,7 +134,7 @@
                 <tbody>
                     {% if loan_applications %}
                         {% for loan in loan_applications %}
-                            <tr class="clickable-row" data-href="{{ url_for('view_loan', id=loan.id) }}">
+                            <tr class="clickable-row" data-href="{{ url_for('view_loan', id=loan.id) }}" data-loan-id="{{ loan.id }}">
                                 <td>{{ loan.id }}</td>
                                 <td>{{ loan.date.strftime('%Y-%m-%d') }}</td>
                                 <td>{{ loan.customer_name }}</td>
@@ -65,7 +158,7 @@
                                     <a href="{{ url_for('view_loan', id=loan.id) }}" class="btn btn-sm btn-info">
                                         <i class="bi bi-eye"></i> View
                                     </a>
-                                    
+
                                     <!-- Conditional Edit button -->
                                     {% if (current_user.is_maker() and loan.status == 'draft') or
                                         (current_user.is_checker() and loan.status == 'pending_checker') or
@@ -74,7 +167,7 @@
                                             <i class="bi bi-pencil"></i> Edit
                                         </a>
                                     {% endif %}
-                                    
+
                                     <!-- Approval button for Checker -->
                                     {% if current_user.is_checker() and loan.status == 'pending_checker' and not loan.checker %}
                                         <a href="{{ url_for('edit_loan', id=loan.id) }}" class="btn btn-sm btn-success">
@@ -87,13 +180,13 @@
                                         <i class="bi bi-check-circle"></i> Final Review
                                     </a>
                                     {% endif %}
-                                    
+
                                     <!-- Delete button only for authors -->
                                     {% if current_user.is_author() %}
                                         <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ loan.id }}">
                                             <i class="bi bi-trash"></i> Delete
                                         </button>
-                                        
+
                                         <!-- Delete Confirmation Modal -->
                                         <div class="modal fade" id="deleteModal{{ loan.id }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ loan.id }}" aria-hidden="true">
                                             <div class="modal-dialog">
@@ -127,6 +220,59 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- Pagination -->
+        {% if pagination and pagination.pages > 1 %}
+        <div class="d-flex justify-content-center mt-4">
+            <nav aria-label="Page navigation">
+                <ul class="pagination">
+                    <!-- Previous page -->
+                    {% if pagination.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('index', page=pagination.prev_num, status=status_filter, search=search_term) }}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link" aria-hidden="true">&laquo;</span>
+                        </li>
+                    {% endif %}
+
+                    <!-- Page numbers -->
+                    {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if page_num %}
+                            {% if page_num == pagination.page %}
+                                <li class="page-item active"><span class="page-link">{{ page_num }}</span></li>
+                            {% else %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('index', page=page_num, status=status_filter, search=search_term) }}">{{ page_num }}</a>
+                                </li>
+                            {% endif %}
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        {% endif %}
+                    {% endfor %}
+
+                    <!-- Next page -->
+                    {% if pagination.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('index', page=pagination.next_num, status=status_filter, search=search_term) }}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link" aria-hidden="true">&raquo;</span>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        <div class="text-center text-muted small mt-2">
+            Showing {{ pagination.items|length }} of {{ pagination.total }} loan applications
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
@@ -138,9 +284,9 @@
         rows.forEach(row => {
             row.addEventListener('click', function(event) {
                 // Don't navigate if clicked on a button or link
-                if (event.target.tagName.toLowerCase() !== 'button' && 
-                    event.target.tagName.toLowerCase() !== 'a' && 
-                    event.target.closest('button') === null && 
+                if (event.target.tagName.toLowerCase() !== 'button' &&
+                    event.target.tagName.toLowerCase() !== 'a' &&
+                    event.target.closest('button') === null &&
                     event.target.closest('a') === null) {
                     window.location.href = this.dataset.href;
                 }

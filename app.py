@@ -1,10 +1,10 @@
 # app.py
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from datetime import datetime
 from flask_wtf import FlaskForm
-from wtforms import StringField, DateField, FloatField, SubmitField, SelectField, PasswordField, BooleanField
+from wtforms import StringField, DateField, FloatField, SubmitField, SelectField, PasswordField, BooleanField, TextAreaField
 from wtforms.validators import DataRequired, Optional, Email, EqualTo, Length
 from flask_wtf.csrf import CSRFProtect
 from flask_login import UserMixin, LoginManager, login_user, logout_user, login_required, current_user
@@ -41,11 +41,11 @@ def role_required(role):
         def decorated_function(*args, **kwargs):
             if not current_user.is_authenticated:
                 return redirect(url_for('login', next=request.url))
-                
+
             if not getattr(current_user, f'is_{role}')():
                 flash(f'You need to be a {role} to access this page.', 'danger')
                 return redirect(url_for('index'))
-                
+
             return f(*args, **kwargs)
         return decorated_function
     return decorator
@@ -57,28 +57,28 @@ class User(db.Model, UserMixin):
     password_hash = db.Column(db.String(128), nullable=False)
     role = db.Column(db.String(20), nullable=False, default=ROLE_MAKER)
     active = db.Column(db.Boolean, default=True)
-    
+
     def __init__(self, username, email, password, role=ROLE_MAKER):
         self.username = username
         self.email = email
         self.set_password(password)
         self.role = role
-    
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
-    
+
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
-    
+
     def is_maker(self):
         return self.role == ROLE_MAKER
-    
+
     def is_checker(self):
         return self.role == ROLE_CHECKER
-    
+
     def is_author(self):
         return self.role == ROLE_AUTHOR
-    
+
     def __repr__(self):
         return f'<User {self.username}>'
 
@@ -102,7 +102,7 @@ class LoanApplication(db.Model):
     beneficiary_ifsc = db.Column(db.String(20), nullable=False)
     bank_name = db.Column(db.String(100), nullable=False)
     branch_name = db.Column(db.String(100), nullable=False)
-    
+
     # Workflow fields
     maker = db.Column(db.String(64), nullable=False)
     maker_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
@@ -110,16 +110,26 @@ class LoanApplication(db.Model):
     checker_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     author = db.Column(db.String(64), nullable=True)
     author_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    
+
     # Status tracking
     STATUS_DRAFT = 'draft'
     STATUS_PENDING_CHECKER = 'pending_checker'
     STATUS_PENDING_AUTHOR = 'pending_author'
     STATUS_APPROVED = 'approved'
     STATUS_REJECTED = 'rejected'
-    
+
     status = db.Column(db.String(20), nullable=False, default=STATUS_DRAFT)
-    
+
+    # Rejection tracking
+    rejection_reason = db.Column(db.Text, nullable=True)
+    rejected_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    rejected_by = db.Column(db.String(64), nullable=True)
+
+    # Timestamps for tracking
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    status_changed_at = db.Column(db.DateTime, nullable=True)
+
     def __repr__(self):
         return f'<LoanApplication {self.application_id}>'
 
@@ -145,27 +155,29 @@ class LoanApplicationForm(FlaskForm):
     maker = StringField('Maker', validators=[DataRequired()])
     checker = StringField('Checker', validators=[])
     author = StringField('Author', validators=[])
-    # Add approval field
+    # Approval/Rejection fields
     approve = BooleanField('Approve Application')
+    reject = BooleanField('Reject Application')
+    rejection_reason = TextAreaField('Rejection Reason', validators=[Optional()])
     submit = SubmitField('Submit')
 
     def __init__(self, *args, **kwargs):
         super(LoanApplicationForm, self).__init__(*args, **kwargs)
-        
+
         # Adjust field access based on user role
         if current_user.is_authenticated:
             if current_user.is_maker():
                 # Maker can only edit maker field
                 self.checker.render_kw = {'readonly': True}
                 self.author.render_kw = {'readonly': True}
-                
+
             elif current_user.is_checker():
                 # Checker can edit maker and checker fields
                 self.author.render_kw = {'readonly': True}
                 # Auto-populate checker field with current checker's username
                 if not self.checker.data:
                     self.checker.data = current_user.username
-                    
+
             elif current_user.is_author():
                 # Auto-populate author field with current author's username
                 if not self.author.data:
@@ -185,53 +197,97 @@ class RegistrationForm(FlaskForm):
     password = PasswordField('Password', validators=[DataRequired()])
     confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password')])
     role = SelectField('Role', choices=[
-        (ROLE_MAKER, 'Maker'), 
-        (ROLE_CHECKER, 'Checker'), 
+        (ROLE_MAKER, 'Maker'),
+        (ROLE_CHECKER, 'Checker'),
         (ROLE_AUTHOR, 'Author')
     ])
     submit = SubmitField('Register')
 
 # Routes
 @app.route('/')
+@app.route('/page/<int:page>')
 @login_required
-def index():
-    # Filter applications based on role
+def index(page=1):
+    # Get filter parameters
+    status_filter = request.args.get('status', '')
+    search_term = request.args.get('search', '')
+    per_page = 10  # Number of items per page
+
+    # Base query
+    query = LoanApplication.query
+
+    # Apply role-based filtering
     if current_user.is_maker():
         # Makers see applications they created
-        loan_applications = LoanApplication.query.filter_by(maker_id=current_user.id).all()
+        query = query.filter_by(maker_id=current_user.id)
     elif current_user.is_checker():
         # Checkers see applications waiting for checker approval and those they've checked
-        loan_applications = LoanApplication.query.filter(
-            (LoanApplication.status == LoanApplication.STATUS_PENDING_CHECKER) | 
+        query = query.filter(
+            (LoanApplication.status == LoanApplication.STATUS_PENDING_CHECKER) |
             (LoanApplication.checker_id == current_user.id)
-        ).all()
-    else:  # Author
-        # Authors see all applications
-        loan_applications = LoanApplication.query.all()
-        
-    return render_template('index.html', loan_applications=loan_applications)
+        )
+    # Authors see all applications (no additional filter)
+
+    # Apply status filter if provided
+    if status_filter:
+        query = query.filter(LoanApplication.status == status_filter)
+
+    # Apply search filter if provided
+    if search_term:
+        search_pattern = f'%{search_term}%'
+        query = query.filter(
+            (LoanApplication.customer_name.like(search_pattern)) |
+            (LoanApplication.application_id.like(search_pattern)) |
+            (LoanApplication.product_type.like(search_pattern))
+        )
+
+    # Order by most recent first
+    query = query.order_by(LoanApplication.updated_at.desc())
+
+    # Paginate the results
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    loan_applications = pagination.items
+
+    # Get status counts for dashboard
+    status_counts = {
+        'draft': LoanApplication.query.filter_by(status=LoanApplication.STATUS_DRAFT).count(),
+        'pending_checker': LoanApplication.query.filter_by(status=LoanApplication.STATUS_PENDING_CHECKER).count(),
+        'pending_author': LoanApplication.query.filter_by(status=LoanApplication.STATUS_PENDING_AUTHOR).count(),
+        'approved': LoanApplication.query.filter_by(status=LoanApplication.STATUS_APPROVED).count(),
+        'rejected': LoanApplication.query.filter_by(status=LoanApplication.STATUS_REJECTED).count(),
+        'total': LoanApplication.query.count()
+    }
+
+    return render_template(
+        'index.html',
+        loan_applications=loan_applications,
+        pagination=pagination,
+        status_filter=status_filter,
+        search_term=search_term,
+        status_counts=status_counts
+    )
 
 @app.route('/add', methods=['GET', 'POST'])
 @login_required
 def add_loan():
     form = LoanApplicationForm()
-    
+
     # Set the maker field to current user if a maker
     if current_user.is_maker():
         form.maker.data = current_user.username
-    
+
     if form.validate_on_submit():
         # Validate field access by role
         if current_user.is_maker():
             if form.checker.data or form.author.data:
                 flash('As a Maker, you cannot set Checker or Author fields.', 'danger')
                 return render_template('add_edit.html', form=form, title='Add Loan Application')
-                
+
         elif current_user.is_checker():
             if form.author.data:
                 flash('As a Checker, you cannot set the Author field.', 'danger')
                 return render_template('add_edit.html', form=form, title='Add Loan Application')
-        
+
         # Set initial status based on role
         if current_user.is_maker():
             status = LoanApplication.STATUS_PENDING_CHECKER
@@ -239,7 +295,7 @@ def add_loan():
             status = LoanApplication.STATUS_PENDING_AUTHOR
         else:  # Author
             status = LoanApplication.STATUS_APPROVED
-        
+
         loan_application = LoanApplication(
             date=form.date.data,
             application_id=form.application_id.data,
@@ -266,7 +322,7 @@ def add_loan():
             author_id=current_user.id if current_user.is_author() else None,
             status=status
         )
-        
+
         try:
             db.session.add(loan_application)
             db.session.commit()
@@ -275,7 +331,7 @@ def add_loan():
         except Exception as e:
             db.session.rollback()
             flash(f'Error adding loan application: {str(e)}', 'danger')
-    
+
     return render_template('add_edit.html', form=form, title='Add Loan Application')
 
 @app.route('/edit/<int:id>', methods=['GET', 'POST'])
@@ -283,27 +339,27 @@ def add_loan():
 def edit_loan(id):
     loan_application = LoanApplication.query.get_or_404(id)
     form = LoanApplicationForm(obj=loan_application)
-    
+
     # For checkers, auto-populate their username in checker field if empty
     if current_user.is_checker() and not loan_application.checker:
         form.checker.data = current_user.username
-    
+
     # For authors, auto-populate their username in author field if empty
     if current_user.is_author() and not loan_application.author:
         form.author.data = current_user.username
-    
+
     if form.validate_on_submit():
         # Validate field access by role
         if current_user.is_maker():
             if form.checker.data != loan_application.checker or form.author.data != loan_application.author:
                 flash('As a Maker, you cannot modify Checker or Author fields.', 'danger')
                 return render_template('add_edit.html', form=form, title='Edit Loan Application')
-                
+
         elif current_user.is_checker():
             if form.author.data != loan_application.author:
                 flash('As a Checker, you cannot modify the Author field.', 'danger')
                 return render_template('add_edit.html', form=form, title='Edit Loan Application')
-        
+
         # Update fields
         loan_application.date = form.date.data
         loan_application.application_id = form.application_id.data
@@ -322,35 +378,65 @@ def edit_loan(id):
         loan_application.beneficiary_ifsc = form.beneficiary_ifsc.data
         loan_application.bank_name = form.bank_name.data
         loan_application.branch_name = form.branch_name.data
-        
+
         # Update workflow fields and status based on role permissions
         if current_user.is_author():
             loan_application.maker = form.maker.data
             loan_application.checker = form.checker.data
             loan_application.author = form.author.data or current_user.username
             loan_application.author_id = current_user.id
-            
-            # If author approves, change status to approved
-            if form.approve.data:
+
+            # Handle approval or rejection
+            if form.approve.data and form.reject.data:
+                flash('Cannot both approve and reject an application.', 'danger')
+                return render_template('add_edit.html', form=form, title='Edit Loan Application', loan_application=loan_application)
+            elif form.approve.data:
                 loan_application.status = LoanApplication.STATUS_APPROVED
+                loan_application.status_changed_at = datetime.utcnow()
                 flash('Application has been approved!', 'success')
-            
+            elif form.reject.data:
+                if not form.rejection_reason.data:
+                    flash('Rejection reason is required when rejecting an application.', 'danger')
+                    return render_template('add_edit.html', form=form, title='Edit Loan Application', loan_application=loan_application)
+                loan_application.status = LoanApplication.STATUS_REJECTED
+                loan_application.rejection_reason = form.rejection_reason.data
+                loan_application.rejected_by = current_user.username
+                loan_application.rejected_by_id = current_user.id
+                loan_application.status_changed_at = datetime.utcnow()
+                flash('Application has been rejected!', 'danger')
+
         elif current_user.is_checker():
             loan_application.maker = form.maker.data
             loan_application.checker = form.checker.data or current_user.username
             if form.checker.data == current_user.username or not loan_application.checker:
                 loan_application.checker_id = current_user.id
-                # If checker approves, move to next stage
-                if form.approve.data:
+
+                # Handle approval or rejection
+                if form.approve.data and form.reject.data:
+                    flash('Cannot both approve and reject an application.', 'danger')
+                    return render_template('add_edit.html', form=form, title='Edit Loan Application', loan_application=loan_application)
+                elif form.approve.data:
                     loan_application.status = LoanApplication.STATUS_PENDING_AUTHOR
+                    loan_application.status_changed_at = datetime.utcnow()
                     flash('Application approved and forwarded to Author!', 'success')
-                
+                elif form.reject.data:
+                    if not form.rejection_reason.data:
+                        flash('Rejection reason is required when rejecting an application.', 'danger')
+                        return render_template('add_edit.html', form=form, title='Edit Loan Application', loan_application=loan_application)
+                    loan_application.status = LoanApplication.STATUS_REJECTED
+                    loan_application.rejection_reason = form.rejection_reason.data
+                    loan_application.rejected_by = current_user.username
+                    loan_application.rejected_by_id = current_user.id
+                    loan_application.status_changed_at = datetime.utcnow()
+                    flash('Application has been rejected!', 'danger')
+
         elif current_user.is_maker():
             loan_application.maker = form.maker.data
             if form.maker.data == current_user.username:
                 loan_application.maker_id = current_user.id
                 loan_application.status = LoanApplication.STATUS_PENDING_CHECKER
-        
+                loan_application.status_changed_at = datetime.utcnow()
+
         try:
             db.session.commit()
             flash('Loan application updated successfully!', 'success')
@@ -358,7 +444,7 @@ def edit_loan(id):
         except Exception as e:
             db.session.rollback()
             flash(f'Error updating loan application: {str(e)}', 'danger')
-    
+
     return render_template('add_edit.html', form=form, title='Edit Loan Application', loan_application=loan_application)
 
 @app.route('/delete/<int:id>', methods=['POST'])
@@ -366,7 +452,7 @@ def edit_loan(id):
 @role_required('author')  # Only authors can delete loan applications
 def delete_loan(id):
     loan_application = LoanApplication.query.get_or_404(id)
-    
+
     try:
         db.session.delete(loan_application)
         db.session.commit()
@@ -374,7 +460,7 @@ def delete_loan(id):
     except Exception as e:
         db.session.rollback()
         flash(f'Error deleting loan application: {str(e)}', 'danger')
-    
+
     return redirect(url_for('index'))
 
 
@@ -382,11 +468,11 @@ def delete_loan(id):
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
-    
+
     form = LoginForm()
     if form.validate_on_submit():
         user = User.query.filter_by(username=form.username.data).first()
-        
+
         if user and user.check_password(form.password.data):
             login_user(user, remember=form.remember.data)
             next_page = request.args.get('next')
@@ -394,7 +480,7 @@ def login():
             return redirect(next_page or url_for('index'))
         else:
             flash('Login failed. Please check your username and password.', 'danger')
-    
+
     return render_template('login.html', title='Login', form=form)
 
 @app.route('/logout')
@@ -419,7 +505,7 @@ def register():
         db.session.commit()
         flash(f'Account created for {form.username.data}!', 'success')
         return redirect(url_for('users'))
-    
+
     return render_template('register.html', title='Register', form=form)
 
 @app.route('/users')
@@ -441,6 +527,47 @@ def profile():
 def view_loan(id):
     loan_application = LoanApplication.query.get_or_404(id)
     return render_template('view.html', loan=loan_application)
+
+# API endpoint for real-time updates
+@app.route('/api/check-updates', methods=['POST'])
+@login_required
+def check_updates():
+    data = request.json
+    loan_ids = data.get('loan_ids', [])
+
+    if not loan_ids:
+        return jsonify({'updates': []})
+
+    # Get the last time the client checked for updates
+    last_check = request.headers.get('Last-Check-Time')
+    if last_check:
+        try:
+            last_check_time = datetime.fromisoformat(last_check)
+        except ValueError:
+            last_check_time = None
+    else:
+        last_check_time = None
+
+    # Query for updated loan applications
+    query = LoanApplication.query.filter(LoanApplication.id.in_(loan_ids))
+
+    # If we have a last check time, only get applications updated since then
+    if last_check_time:
+        query = query.filter(LoanApplication.updated_at > last_check_time)
+
+    updated_loans = query.all()
+
+    # Format the response
+    updates = [{
+        'id': loan.id,
+        'status': loan.status,
+        'updated_at': loan.updated_at.isoformat() if loan.updated_at else None
+    } for loan in updated_loans]
+
+    return jsonify({
+        'updates': updates,
+        'server_time': datetime.utcnow().isoformat()
+    })
 
 # Create all tables
 with app.app_context():

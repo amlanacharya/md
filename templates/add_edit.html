@@ -11,7 +11,7 @@
     <div class="card-body">
         <form method="POST" novalidate>
             {{ form.csrf_token }}
-            
+
             <div class="row mb-3">
                 <div class="col-md-4">
                     <div class="form-group">
@@ -47,7 +47,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="row mb-3">
                 <div class="col-md-4">
                     <div class="form-group">
@@ -83,7 +83,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="row mb-3">
                 <div class="col-md-4">
                     <div class="form-group">
@@ -119,7 +119,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="row mb-3">
                 <div class="col-md-4">
                     <div class="form-group">
@@ -155,9 +155,9 @@
                     </div>
                 </div>
             </div>
-            
+
             <h4 class="mt-4 mb-3">Beneficiary Details</h4>
-            
+
             <div class="row mb-3">
                 <div class="col-md-4">
                     <div class="form-group">
@@ -193,7 +193,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="row mb-3">
                 <div class="col-md-6">
                     <div class="form-group">
@@ -218,9 +218,9 @@
                     </div>
                 </div>
             </div>
-            
+
             <h4 class="mt-4 mb-3">Workflow Information</h4>
-            
+
             <div class="row mb-3">
                 <div class="col-md-4">
                     <div class="form-group">
@@ -256,51 +256,125 @@
                     </div>
                 </div>
             </div>
-            
-            <!-- Author Approval Option -->
+
+            <!-- Author Approval/Rejection Option -->
             {% if current_user.is_author() and title == 'Edit Loan Application' and loan_application.status == 'pending_author' %}
             <div class="row mb-3">
                 <div class="col-md-12">
-                    <div class="card border-success mb-3">
-                        <div class="card-header bg-success text-white">
-                            <h5 class="mb-0">Author Final Approval</h5>
+                    <div class="card border-primary mb-3">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Author Final Decision</h5>
                         </div>
                         <div class="card-body">
-                            <div class="form-check">
-                                {{ form.approve(class="form-check-input") }}
-                                <label class="form-check-label" for="approve">
-                                    <span class="text-success fw-bold">Final approval for this application</span>
-                                    <small class="text-muted d-block">By checking this box, you confirm that you have reviewed and give final approval for this loan application.</small>
-                                </label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card border-success mb-3">
+                                        <div class="card-header bg-success text-white">
+                                            <h5 class="mb-0">Approve</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="form-check">
+                                                {{ form.approve(class="form-check-input") }}
+                                                <label class="form-check-label" for="approve">
+                                                    <span class="text-success fw-bold">Final approval for this application</span>
+                                                    <small class="text-muted d-block">By checking this box, you confirm that you have reviewed and give final approval for this loan application.</small>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card border-danger mb-3">
+                                        <div class="card-header bg-danger text-white">
+                                            <h5 class="mb-0">Reject</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="form-check mb-3">
+                                                {{ form.reject(class="form-check-input") }}
+                                                <label class="form-check-label" for="reject">
+                                                    <span class="text-danger fw-bold">Reject this application</span>
+                                                    <small class="text-muted d-block">By checking this box, you are rejecting this loan application.</small>
+                                                </label>
+                                            </div>
+                                            <div class="form-group mt-3" id="rejection_reason_group">
+                                                <label for="rejection_reason">{{ form.rejection_reason.label.text }} <span class="text-danger">*</span></label>
+                                                {{ form.rejection_reason(class="form-control", rows=3) }}
+                                                {% if form.rejection_reason.errors %}
+                                                    {% for error in form.rejection_reason.errors %}
+                                                        <div class="text-danger small">{{ error }}</div>
+                                                    {% endfor %}
+                                                {% endif %}
+                                                <small class="text-muted">Please provide a detailed reason for rejection.</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
             {% endif %}
-            
-            <!-- Checker Approval Option -->
+
+            <!-- Checker Approval/Rejection Option -->
             {% if current_user.is_checker() and title == 'Edit Loan Application' and loan_application.status == 'pending_checker' %}
             <div class="row mb-3">
                 <div class="col-md-12">
-                    <div class="card border-success mb-3">
-                        <div class="card-header bg-success text-white">
-                            <h5 class="mb-0">Checker Approval</h5>
+                    <div class="card border-primary mb-3">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Checker Decision</h5>
                         </div>
                         <div class="card-body">
-                            <div class="form-check">
-                                {{ form.approve(class="form-check-input") }}
-                                <label class="form-check-label" for="approve">
-                                    <span class="text-success fw-bold">Approve this application</span>
-                                    <small class="text-muted d-block">By checking this box, you confirm that you have reviewed and approved this loan application.</small>
-                                </label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card border-success mb-3">
+                                        <div class="card-header bg-success text-white">
+                                            <h5 class="mb-0">Approve</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="form-check">
+                                                {{ form.approve(class="form-check-input") }}
+                                                <label class="form-check-label" for="approve">
+                                                    <span class="text-success fw-bold">Approve this application</span>
+                                                    <small class="text-muted d-block">By checking this box, you confirm that you have reviewed and approved this loan application.</small>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card border-danger mb-3">
+                                        <div class="card-header bg-danger text-white">
+                                            <h5 class="mb-0">Reject</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="form-check mb-3">
+                                                {{ form.reject(class="form-check-input") }}
+                                                <label class="form-check-label" for="reject">
+                                                    <span class="text-danger fw-bold">Reject this application</span>
+                                                    <small class="text-muted d-block">By checking this box, you are rejecting this loan application.</small>
+                                                </label>
+                                            </div>
+                                            <div class="form-group mt-3" id="checker_rejection_reason_group">
+                                                <label for="rejection_reason">{{ form.rejection_reason.label.text }} <span class="text-danger">*</span></label>
+                                                {{ form.rejection_reason(class="form-control", rows=3) }}
+                                                {% if form.rejection_reason.errors %}
+                                                    {% for error in form.rejection_reason.errors %}
+                                                        <div class="text-danger small">{{ error }}</div>
+                                                    {% endfor %}
+                                                {% endif %}
+                                                <small class="text-muted">Please provide a detailed reason for rejection.</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
             {% endif %}
-            
+
             <div class="form-group mt-4">
                 <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
                 <a href="{{ url_for('index') }}" class="btn btn-secondary ms-2">Cancel</a>
