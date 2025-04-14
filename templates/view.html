@@ -1,0 +1,142 @@
+<!-- templates/view.html -->
+{% extends "layout.html" %}
+
+{% block title %}View Loan Application - Loan Management System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Loan Application Details</h1>
+    <div>
+        <a href="{{ url_for('edit_loan', id=loan.id) }}" class="btn btn-warning">
+            <i class="bi bi-pencil"></i> Edit
+        </a>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary ms-2">
+            <i class="bi bi-arrow-left"></i> Back to List
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <h5 class="card-title mb-0">Basic Information</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3 mb-3">
+                <strong>Application ID:</strong>
+                <p>{{ loan.application_id }}</p>
+            </div>
+            <div class="col-md-3 mb-3">
+                <strong>Date:</strong>
+                <p>{{ loan.date.strftime('%Y-%m-%d') }}</p>
+            </div>
+            <div class="col-md-3 mb-3">
+                <strong>Customer Name:</strong>
+                <p>{{ loan.customer_name }}</p>
+            </div>
+            <div class="col-md-3 mb-3">
+                <strong>Dealer Code:</strong>
+                <p>{{ loan.dealer_code }}</p>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-3 mb-3">
+                <strong>Scheme Name:</strong>
+                <p>{{ loan.scheme_name }}</p>
+            </div>
+            <div class="col-md-3 mb-3">
+                <strong>Branch Location:</strong>
+                <p>{{ loan.branch_location }}</p>
+            </div>
+            <div class="col-md-3 mb-3">
+                <strong>Product Type:</strong>
+                <p>{{ loan.product_type }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <h5 class="card-title mb-0">Financial Details</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3 mb-3">
+                <strong>Loan Amount:</strong>
+                <p class="text-primary">₹{{ "%.2f"|format(loan.loan_amount) }}</p>
+            </div>
+            <div class="col-md-3 mb-3">
+                <strong>Payment Amount:</strong>
+                <p>₹{{ "%.2f"|format(loan.payment_amount) }}</p>
+            </div>
+            <div class="col-md-2 mb-3">
+                <strong>Processing Fee:</strong>
+                <p>₹{{ "%.2f"|format(loan.processing_fee) }}</p>
+            </div>
+            <div class="col-md-2 mb-3">
+                <strong>RTO:</strong>
+                <p>₹{{ "%.2f"|format(loan.rto) }}</p>
+            </div>
+            <div class="col-md-2 mb-3">
+                <strong>VAP Amount:</strong>
+                <p>₹{{ "%.2f"|format(loan.vap_amount) }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <h5 class="card-title mb-0">Beneficiary Details</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <strong>Beneficiary Name:</strong>
+                <p>{{ loan.beneficiary_name }}</p>
+            </div>
+            <div class="col-md-4 mb-3">
+                <strong>Account Number:</strong>
+                <p>{{ loan.beneficiary_account_number }}</p>
+            </div>
+            <div class="col-md-4 mb-3">
+                <strong>IFSC Code:</strong>
+                <p>{{ loan.beneficiary_ifsc }}</p>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <strong>Bank Name:</strong>
+                <p>{{ loan.bank_name }}</p>
+            </div>
+            <div class="col-md-6 mb-3">
+                <strong>Branch Name:</strong>
+                <p>{{ loan.branch_name }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-light">
+        <h5 class="card-title mb-0">Workflow Information</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <strong>Maker:</strong>
+                <p>{{ loan.maker }}</p>
+            </div>
+            <div class="col-md-4 mb-3">
+                <strong>Checker:</strong>
+                <p>{{ loan.checker }}</p>
+            </div>
+            <div class="col-md-4 mb-3">
+                <strong>Author:</strong>
+                <p>{{ loan.author }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
