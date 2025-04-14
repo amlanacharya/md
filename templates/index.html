@@ -13,7 +13,15 @@
 
 <div class="card">
     <div class="card-header">
-        <h2>All Loan Applications</h2>
+        <h2>
+            {% if current_user.is_maker() %}
+                My Loan Applications
+            {% elif current_user.is_checker() %}
+                Loans Pending Review
+            {% else %}
+                All Loan Applications
+            {% endif %}
+        </h2>
     </div>
     <div class="card-body">
         <div class="table-responsive">
@@ -26,6 +34,7 @@
                         <th>Application ID</th>
                         <th>Loan Amount</th>
                         <th>Product Type</th>
+                        <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -40,43 +49,79 @@
                                 <td>₹{{ "%.2f"|format(loan.loan_amount) }}</td>
                                 <td>{{ loan.product_type }}</td>
                                 <td>
+                                    {% if loan.status == 'draft' %}
+                                        <span class="badge bg-secondary">Draft</span>
+                                    {% elif loan.status == 'pending_checker' %}
+                                        <span class="badge bg-warning text-dark">Pending Checker</span>
+                                    {% elif loan.status == 'pending_author' %}
+                                        <span class="badge bg-info">Pending Author</span>
+                                    {% elif loan.status == 'approved' %}
+                                        <span class="badge bg-success">Approved</span>
+                                    {% elif loan.status == 'rejected' %}
+                                        <span class="badge bg-danger">Rejected</span>
+                                    {% endif %}
+                                </td>
+                                <td>
                                     <a href="{{ url_for('view_loan', id=loan.id) }}" class="btn btn-sm btn-info">
                                         <i class="bi bi-eye"></i> View
                                     </a>
-                                    <a href="{{ url_for('edit_loan', id=loan.id) }}" class="btn btn-sm btn-warning">
-                                        <i class="bi bi-pencil"></i> Edit
-                                    </a>
-                                    <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ loan.id }}">
-                                        <i class="bi bi-trash"></i> Delete
-                                    </button>
                                     
-                                    <!-- Delete Confirmation Modal -->
-                                    <div class="modal fade" id="deleteModal{{ loan.id }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ loan.id }}" aria-hidden="true">
-                                        <div class="modal-dialog">
-                                            <div class="modal-content">
-                                                <div class="modal-header">
-                                                    <h5 class="modal-title" id="deleteModalLabel{{ loan.id }}">Confirm Delete</h5>
-                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                </div>
-                                                <div class="modal-body">
-                                                    Are you sure you want to delete the loan application for <strong>{{ loan.customer_name }}</strong> (ID: {{ loan.application_id }})?
-                                                </div>
-                                                <div class="modal-footer">
-                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                    <form action="{{ url_for('delete_loan', id=loan.id) }}" method="POST" style="display: inline;">
-                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                                        <button type="submit" class="btn btn-danger">Delete</button>
-                                                    </form>
+                                    <!-- Conditional Edit button -->
+                                    {% if (current_user.is_maker() and loan.status == 'draft') or
+                                        (current_user.is_checker() and loan.status == 'pending_checker') or
+                                        (current_user.is_author()) %}
+                                        <a href="{{ url_for('edit_loan', id=loan.id) }}" class="btn btn-sm btn-warning">
+                                            <i class="bi bi-pencil"></i> Edit
+                                        </a>
+                                    {% endif %}
+                                    
+                                    <!-- Approval button for Checker -->
+                                    {% if current_user.is_checker() and loan.status == 'pending_checker' and not loan.checker %}
+                                        <a href="{{ url_for('edit_loan', id=loan.id) }}" class="btn btn-sm btn-success">
+                                            <i class="bi bi-check-circle"></i> Review
+                                        </a>
+                                    {% endif %}
+                                    <!-- Approval button for Author -->
+                                    {% if current_user.is_author() and loan.status == 'pending_author' and not loan.author %}
+                                    <a href="{{ url_for('edit_loan', id=loan.id) }}" class="btn btn-sm btn-success">
+                                        <i class="bi bi-check-circle"></i> Final Review
+                                    </a>
+                                    {% endif %}
+                                    
+                                    <!-- Delete button only for authors -->
+                                    {% if current_user.is_author() %}
+                                        <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ loan.id }}">
+                                            <i class="bi bi-trash"></i> Delete
+                                        </button>
+                                        
+                                        <!-- Delete Confirmation Modal -->
+                                        <div class="modal fade" id="deleteModal{{ loan.id }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ loan.id }}" aria-hidden="true">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title" id="deleteModalLabel{{ loan.id }}">Confirm Delete</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        Are you sure you want to delete the loan application for <strong>{{ loan.customer_name }}</strong> (ID: {{ loan.application_id }})?
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                        <form action="{{ url_for('delete_loan', id=loan.id) }}" method="POST" style="display: inline;">
+                                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                            <button type="submit" class="btn btn-danger">Delete</button>
+                                                        </form>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
+                                    {% endif %}
                                 </td>
                             </tr>
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="7" class="text-center">No loan applications found. <a href="{{ url_for('add_loan') }}">Add one now</a>!</td>
+                            <td colspan="8" class="text-center">No loan applications found. <a href="{{ url_for('add_loan') }}">Add one now</a>!</td>
                         </tr>
                     {% endif %}
                 </tbody>

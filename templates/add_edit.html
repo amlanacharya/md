@@ -5,8 +5,8 @@
 
 {% block content %}
 <div class="card">
-    <div class="card-header">
-        <h2>{{ title }}</h2>
+    <div class="card-header bg-primary text-white">
+        <h2 class="mb-0">{{ title }}</h2>
     </div>
     <div class="card-body">
         <form method="POST" novalidate>
@@ -219,7 +219,7 @@
                 </div>
             </div>
             
-            <h4 class="mt-4 mb-3">Workflow</h4>
+            <h4 class="mt-4 mb-3">Workflow Information</h4>
             
             <div class="row mb-3">
                 <div class="col-md-4">
@@ -235,7 +235,7 @@
                 </div>
                 <div class="col-md-4">
                     <div class="form-group">
-                        <label for="checker">{{ form.checker.label.text }} <span class="text-danger">*</span></label>
+                        <label for="checker">{{ form.checker.label.text }}</label>
                         {{ form.checker(class="form-control") }}
                         {% if form.checker.errors %}
                             {% for error in form.checker.errors %}
@@ -246,7 +246,7 @@
                 </div>
                 <div class="col-md-4">
                     <div class="form-group">
-                        <label for="author">{{ form.author.label.text }} <span class="text-danger">*</span></label>
+                        <label for="author">{{ form.author.label.text }}</label>
                         {{ form.author(class="form-control") }}
                         {% if form.author.errors %}
                             {% for error in form.author.errors %}
@@ -256,6 +256,50 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- Author Approval Option -->
+            {% if current_user.is_author() and title == 'Edit Loan Application' and loan_application.status == 'pending_author' %}
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <div class="card border-success mb-3">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">Author Final Approval</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-check">
+                                {{ form.approve(class="form-check-input") }}
+                                <label class="form-check-label" for="approve">
+                                    <span class="text-success fw-bold">Final approval for this application</span>
+                                    <small class="text-muted d-block">By checking this box, you confirm that you have reviewed and give final approval for this loan application.</small>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Checker Approval Option -->
+            {% if current_user.is_checker() and title == 'Edit Loan Application' and loan_application.status == 'pending_checker' %}
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <div class="card border-success mb-3">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">Checker Approval</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-check">
+                                {{ form.approve(class="form-check-input") }}
+                                <label class="form-check-label" for="approve">
+                                    <span class="text-success fw-bold">Approve this application</span>
+                                    <small class="text-muted d-block">By checking this box, you confirm that you have reviewed and approved this loan application.</small>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
             
             <div class="form-group mt-4">
                 <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>

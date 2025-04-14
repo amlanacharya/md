@@ -1,0 +1,125 @@
+<!-- templates/profile.html -->
+{% extends "layout.html" %}
+
+{% block title %}My Profile - Loan Management System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h2 class="mb-0">My Profile</h2>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-3 text-center">
+                        <div class="mb-3">
+                            <i class="bi bi-person-circle" style="font-size: 6rem;"></i>
+                        </div>
+                        <span class="badge {% if current_user.is_maker() %}bg-secondary{% elif current_user.is_checker() %}bg-info{% else %}bg-success{% endif %} py-2 px-3">
+                            {{ current_user.role | capitalize }}
+                        </span>
+                    </div>
+                    <div class="col-md-9">
+                        <table class="table table-bordered">
+                            <tr>
+                                <th style="width: 30%">Username</th>
+                                <td>{{ current_user.username }}</td>
+                            </tr>
+                            <tr>
+                                <th>Email</th>
+                                <td>{{ current_user.email }}</td>
+                            </tr>
+                            <tr>
+                                <th>Role</th>
+                                <td>{{ current_user.role | capitalize }}</td>
+                            </tr>
+                            <tr>
+                                <th>Account Status</th>
+                                <td>
+                                    {% if current_user.active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inactive</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <h4>Role Permissions</h4>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Action</th>
+                                    <th>Maker</th>
+                                    <th>Checker</th>
+                                    <th>Author</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>View Loans</td>
+                                    <td><i class="bi bi-check-circle-fill text-success"></i></td>
+                                    <td><i class="bi bi-check-circle-fill text-success"></i></td>
+                                    <td><i class="bi bi-check-circle-fill text-success"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Add Loans</td>
+                                    <td><i class="bi bi-check-circle-fill text-success"></i></td>
+                                    <td><i class="bi bi-check-circle-fill text-success"></i></td>
+                                    <td><i class="bi bi-check-circle-fill text-success"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Edit Maker Field</td>
+                                    <td><i class="bi bi-check-circle-fill text-success"></i></td>
+                                    <td><i class="bi bi-check-circle-fill text-success"></i></td>
+                                    <td><i class="bi bi-check-circle-fill text-success"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Edit Checker Field</td>
+                                    <td><i class="bi bi-x-circle-fill text-danger"></i></td>
+                                    <td><i class="bi bi-check-circle-fill text-success"></i></td>
+                                    <td><i class="bi bi-check-circle-fill text-success"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Edit Author Field</td>
+                                    <td><i class="bi bi-x-circle-fill text-danger"></i></td>
+                                    <td><i class="bi bi-x-circle-fill text-danger"></i></td>
+                                    <td><i class="bi bi-check-circle-fill text-success"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Approve Applications</td>
+                                    <td><i class="bi bi-x-circle-fill text-danger"></i></td>
+                                    <td><i class="bi bi-check-circle-fill text-success"></i></td>
+                                    <td><i class="bi bi-check-circle-fill text-success"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Delete Loans</td>
+                                    <td><i class="bi bi-x-circle-fill text-danger"></i></td>
+                                    <td><i class="bi bi-x-circle-fill text-danger"></i></td>
+                                    <td><i class="bi bi-check-circle-fill text-success"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Manage Users</td>
+                                    <td><i class="bi bi-x-circle-fill text-danger"></i></td>
+                                    <td><i class="bi bi-x-circle-fill text-danger"></i></td>
+                                    <td><i class="bi bi-check-circle-fill text-success"></i></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-center mt-4">
+                    <a href="#" class="btn btn-primary me-2">Change Password</a>
+                    <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Dashboard</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
