@@ -82,7 +82,48 @@ class User(db.Model, UserMixin):
     def __repr__(self):
         return f'<User {self.username}>'
 
-# Model for Loan Application
+
+class LoanApplication(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.Date, nullable=False, default=datetime.utcnow)
+    application_id = db.Column(db.String(50), unique=True, nullable=False)
+    customer_name = db.Column(db.String(100), nullable=False)
+    dealer_code = db.Column(db.String(50), nullable=False)
+    scheme_name = db.Column(db.String(100), nullable=False)
+    branch_location = db.Column(db.String(100), nullable=False)
+    product_type = db.Column(db.String(50), nullable=False)
+    loan_amount = db.Column(db.Float, nullable=False)
+    payment_amount = db.Column(db.Float, nullable=False)
+    processing_fee = db.Column(db.Float, nullable=False)
+    rto = db.Column(db.Float, nullable=False)
+    vap_amount = db.Column(db.Float, nullable=False)
+    beneficiary_name = db.Column(db.String(100), nullable=False)
+    beneficiary_account_number = db.Column(db.String(50), nullable=False)
+    beneficiary_ifsc = db.Column(db.String(20), nullable=False)
+    bank_name = db.Column(db.String(100), nullable=False)
+    branch_name = db.Column(db.String(100), nullable=False)
+    
+    # Workflow fields
+    maker = db.Column(db.String(64), nullable=False)
+    maker_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    checker = db.Column(db.String(64), nullable=True)
+    checker_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    author = db.Column(db.String(64), nullable=True)
+    author_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    
+    # Status tracking
+    STATUS_DRAFT = 'draft'
+    STATUS_PENDING_CHECKER = 'pending_checker'
+    STATUS_PENDING_AUTHOR = 'pending_author'
+    STATUS_APPROVED = 'approved'
+    STATUS_REJECTED = 'rejected'
+    
+    status = db.Column(db.String(20), nullable=False, default=STATUS_DRAFT)
+    
+    def __repr__(self):
+        return f'<LoanApplication {self.application_id}>'
+
+# Form for loan applications
 class LoanApplicationForm(FlaskForm):
     date = DateField('Date', validators=[DataRequired()], format='%Y-%m-%d')
     application_id = StringField('Application ID', validators=[DataRequired()])
@@ -129,18 +170,6 @@ class LoanApplicationForm(FlaskForm):
                 # Auto-populate author field with current author's username
                 if not self.author.data:
                     self.author.data = current_user.username
-    
-    # Status tracking
-    STATUS_DRAFT = 'draft'
-    STATUS_PENDING_CHECKER = 'pending_checker'
-    STATUS_PENDING_AUTHOR = 'pending_author'
-    STATUS_APPROVED = 'approved'
-    STATUS_REJECTED = 'rejected'
-    
-    status = db.Column(db.String(20), nullable=False, default=STATUS_DRAFT)
-    
-    def __repr__(self):
-        return f'<LoanApplication {self.application_id}>'
 
 # Form for login
 class LoginForm(FlaskForm):
@@ -161,49 +190,6 @@ class RegistrationForm(FlaskForm):
         (ROLE_AUTHOR, 'Author')
     ])
     submit = SubmitField('Register')
-
-# Form for adding/editing loan applications
-class LoanApplicationForm(FlaskForm):
-    date = DateField('Date', validators=[DataRequired()], format='%Y-%m-%d')
-    application_id = StringField('Application ID', validators=[DataRequired()])
-    customer_name = StringField('Customer Name', validators=[DataRequired()])
-    dealer_code = StringField('Dealer Code', validators=[DataRequired()])
-    scheme_name = StringField('Scheme Name', validators=[DataRequired()])
-    branch_location = StringField('Branch Location', validators=[DataRequired()])
-    product_type = StringField('Product Type', validators=[DataRequired()])
-    loan_amount = FloatField('Loan Amount', validators=[DataRequired()])
-    payment_amount = FloatField('Payment Amount', validators=[DataRequired()])
-    processing_fee = FloatField('Processing Fee', validators=[DataRequired()])
-    rto = FloatField('RTO', validators=[DataRequired()])
-    vap_amount = FloatField('VAP Amount', validators=[DataRequired()])
-    beneficiary_name = StringField('Beneficiary Name', validators=[DataRequired()])
-    beneficiary_account_number = StringField('Beneficiary Account Number', validators=[DataRequired()])
-    beneficiary_ifsc = StringField('Beneficiary IFSC', validators=[DataRequired()])
-    bank_name = StringField('Bank Name', validators=[DataRequired()])
-    branch_name = StringField('Branch Name', validators=[DataRequired()])
-    maker = StringField('Maker', validators=[DataRequired()])
-    checker = StringField('Checker', validators=[])
-    author = StringField('Author', validators=[])
-    # Add approval field
-    approve = BooleanField('Approve Application')
-    submit = SubmitField('Submit')
-
-    def __init__(self, *args, **kwargs):
-        super(LoanApplicationForm, self).__init__(*args, **kwargs)
-        
-        # Adjust field access based on user role
-        if current_user.is_authenticated:
-            if current_user.is_maker():
-                # Maker can only edit maker field
-                self.checker.render_kw = {'readonly': True}
-                self.author.render_kw = {'readonly': True}
-                
-            elif current_user.is_checker():
-                # Checker can edit maker and checker fields
-                self.author.render_kw = {'readonly': True}
-                # Auto-populate checker field with current checker's username
-                if not self.checker.data:
-                    self.checker.data = current_user.username
 
 # Routes
 @app.route('/')
@@ -373,7 +359,7 @@ def edit_loan(id):
             db.session.rollback()
             flash(f'Error updating loan application: {str(e)}', 'danger')
     
-    return render_template('add_edit.html', form=form, title='Edit Loan Application')
+    return render_template('add_edit.html', form=form, title='Edit Loan Application', loan_application=loan_application)
 
 @app.route('/delete/<int:id>', methods=['POST'])
 @login_required
