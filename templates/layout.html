@@ -53,7 +53,29 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('add_loan') }}">Add New Loan</a>
                     </li>
+                    {% if current_user.is_checker() %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('distribute_applications') }}">
+                            <i class="bi bi-distribute-vertical"></i> Distribute Applications
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('assigned_cases_checker') }}">
+                            <i class="bi bi-list-check"></i> My Assigned Cases
+                        </a>
+                    </li>
+                    {% endif %}
                     {% if current_user.is_author() %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('distribute_author_applications') }}">
+                            <i class="bi bi-distribute-vertical"></i> Distribute to Authors
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('assigned_cases_author') }}">
+                            <i class="bi bi-list-check"></i> My Assigned Cases
+                        </a>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('users') }}">User Management</a>
                     </li>

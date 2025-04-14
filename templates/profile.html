@@ -44,6 +44,28 @@
                                     {% endif %}
                                 </td>
                             </tr>
+                            {% if (current_user.is_checker() or current_user.is_author()) and enable_product_expertise %}
+                            <tr>
+                                <th>Product Expertise</th>
+                                <td>
+                                    {% if current_user.product_expertise %}
+                                        <span class="badge bg-primary">{{ current_user.product_expertise }}</span>
+                                    {% else %}
+                                        <span class="text-muted">None</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Availability</th>
+                                <td>
+                                    {% if current_user.available %}
+                                        <span class="badge bg-success">Available for Assignment</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark">Unavailable</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endif %}
                         </table>
                     </div>
                 </div>

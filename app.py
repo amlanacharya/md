@@ -1,5 +1,5 @@
 # app.py
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, Response
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from datetime import datetime
@@ -10,11 +10,19 @@ from flask_wtf.csrf import CSRFProtect
 from flask_login import UserMixin, LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
+import io
+import csv
+import tempfile
+import os
+from excel_utils import export_applications_to_excel, export_distribution_to_excel, export_productivity_report_to_excel
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'OADSECRET'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///loan_management.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Application configuration
+app.config['ENABLE_PRODUCT_EXPERTISE'] = False  # Set to True to enable product expertise feature
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
@@ -50,6 +58,12 @@ def role_required(role):
         return decorated_function
     return decorator
 
+# Product type constants
+PRODUCT_PL = 'PL'  # Personal Loan
+PRODUCT_TW = 'TW'  # Two Wheeler
+PRODUCT_UTW = 'UTW'  # Used Two Wheeler
+PRODUCT_UC = 'UC'  # Used Car
+
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, nullable=False)
@@ -58,11 +72,19 @@ class User(db.Model, UserMixin):
     role = db.Column(db.String(20), nullable=False, default=ROLE_MAKER)
     active = db.Column(db.Boolean, default=True)
 
-    def __init__(self, username, email, password, role=ROLE_MAKER):
+    # Product expertise (for checkers and authors)
+    product_expertise = db.Column(db.String(10), nullable=True)
+
+    # Availability status
+    available = db.Column(db.Boolean, default=True)
+
+    def __init__(self, username, email, password, role=ROLE_MAKER, product_expertise=None, available=True):
         self.username = username
         self.email = email
         self.set_password(password)
         self.role = role
+        self.product_expertise = product_expertise
+        self.available = available
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -141,7 +163,12 @@ class LoanApplicationForm(FlaskForm):
     dealer_code = StringField('Dealer Code', validators=[DataRequired()])
     scheme_name = StringField('Scheme Name', validators=[DataRequired()])
     branch_location = StringField('Branch Location', validators=[DataRequired()])
-    product_type = StringField('Product Type', validators=[DataRequired()])
+    product_type = SelectField('Product Type', validators=[DataRequired()], choices=[
+        (PRODUCT_PL, 'Personal Loan (PL)'),
+        (PRODUCT_TW, 'Two Wheeler (TW)'),
+        (PRODUCT_UTW, 'Used Two Wheeler (UTW)'),
+        (PRODUCT_UC, 'Used Car (UC)')
+    ])
     loan_amount = FloatField('Loan Amount', validators=[DataRequired()])
     payment_amount = FloatField('Payment Amount', validators=[DataRequired()])
     processing_fee = FloatField('Processing Fee', validators=[DataRequired()])
@@ -201,7 +228,23 @@ class RegistrationForm(FlaskForm):
         (ROLE_CHECKER, 'Checker'),
         (ROLE_AUTHOR, 'Author')
     ])
+    product_expertise = SelectField('Product Expertise', choices=[
+        ('', 'None'),
+        (PRODUCT_PL, 'Personal Loan (PL)'),
+        (PRODUCT_TW, 'Two Wheeler (TW)'),
+        (PRODUCT_UTW, 'Used Two Wheeler (UTW)'),
+        (PRODUCT_UC, 'Used Car (UC)')
+    ], validators=[Optional()])
+    available = BooleanField('Available for Assignment', default=True)
     submit = SubmitField('Register')
+
+    def __init__(self, *args, **kwargs):
+        super(RegistrationForm, self).__init__(*args, **kwargs)
+        # Hide product expertise field if the feature is disabled
+        if not app.config['ENABLE_PRODUCT_EXPERTISE']:
+            self.product_expertise.render_kw = {'style': 'display: none;'}
+            # Also hide the label by adding a class
+            self.product_expertise.label.text = ''
 
 # Routes
 @app.route('/')
@@ -351,14 +394,20 @@ def edit_loan(id):
     if form.validate_on_submit():
         # Validate field access by role
         if current_user.is_maker():
-            if form.checker.data != loan_application.checker or form.author.data != loan_application.author:
+            # Check if checker field was modified (only if both values are not empty)
+            checker_modified = form.checker.data and loan_application.checker and form.checker.data != loan_application.checker
+            # Check if author field was modified (only if both values are not empty)
+            author_modified = form.author.data and loan_application.author and form.author.data != loan_application.author
+
+            if checker_modified or author_modified:
                 flash('As a Maker, you cannot modify Checker or Author fields.', 'danger')
-                return render_template('add_edit.html', form=form, title='Edit Loan Application')
+                return render_template('add_edit.html', form=form, title='Edit Loan Application', loan_application=loan_application)
 
         elif current_user.is_checker():
-            if form.author.data != loan_application.author:
+            # Only check for author field modification if both values are not empty
+            if form.author.data and loan_application.author and form.author.data != loan_application.author:
                 flash('As a Checker, you cannot modify the Author field.', 'danger')
-                return render_template('add_edit.html', form=form, title='Edit Loan Application')
+                return render_template('add_edit.html', form=form, title='Edit Loan Application', loan_application=loan_application)
 
         # Update fields
         loan_application.date = form.date.data
@@ -495,11 +544,20 @@ def logout():
 def register():
     form = RegistrationForm()
     if form.validate_on_submit():
+        # Only set product expertise if the feature is enabled
+        product_expertise = None
+        if app.config['ENABLE_PRODUCT_EXPERTISE']:
+            # Only set product expertise for checker and author roles
+            if form.role.data in [ROLE_CHECKER, ROLE_AUTHOR] and form.product_expertise.data:
+                product_expertise = form.product_expertise.data
+
         user = User(
             username=form.username.data,
             email=form.email.data,
             password=form.password.data,
-            role=form.role.data
+            role=form.role.data,
+            product_expertise=product_expertise,
+            available=form.available.data
         )
         db.session.add(user)
         db.session.commit()
@@ -513,13 +571,189 @@ def register():
 @role_required('author')  # Only authors can view the user list
 def users():
     users = User.query.all()
-    return render_template('users.html', title='Users', users=users)
+    from flask import current_app
+    return render_template('users.html', title='Users', users=users, enable_product_expertise=current_app.config['ENABLE_PRODUCT_EXPERTISE'])
 
 # Add a route for the user profile
 @app.route('/profile')
 @login_required
 def profile():
-    return render_template('profile.html', title='My Profile')
+    from flask import current_app
+    return render_template('profile.html', title='My Profile', enable_product_expertise=current_app.config['ENABLE_PRODUCT_EXPERTISE'])
+
+
+# Helper function to auto-distribute applications equally
+def auto_distribute_applications(applications_by_product, available_users, user_role):
+    if not available_users:
+        return False
+
+    # Count total applications
+    total_applications = sum(len(apps) for apps in applications_by_product.values())
+    if total_applications == 0:
+        return False
+
+    # Get current workload for each user
+    user_workloads = {}
+    for user in available_users:
+        if user_role == ROLE_CHECKER:
+            workload = LoanApplication.query.filter_by(checker_id=user.id, status=LoanApplication.STATUS_PENDING_CHECKER).count()
+        else:  # ROLE_AUTHOR
+            workload = LoanApplication.query.filter_by(author_id=user.id, status=LoanApplication.STATUS_PENDING_AUTHOR).count()
+        user_workloads[user.id] = workload
+
+    # Sort users by workload (least busy first)
+    sorted_users = sorted(available_users, key=lambda u: user_workloads[u.id])
+
+    # Distribute applications equally among users by product type
+    for product_type, applications in applications_by_product.items():
+        # For each product type, distribute applications evenly
+        for i, app in enumerate(applications):
+            # Assign to user with least workload
+            user_index = i % len(sorted_users)
+            user = sorted_users[user_index]
+
+            # Update application
+            if user_role == ROLE_CHECKER:
+                app.checker = user.username
+                app.checker_id = user.id
+            else:  # ROLE_AUTHOR
+                app.author = user.username
+                app.author_id = user.id
+
+            # Update workload count
+            user_workloads[user.id] += 1
+
+            # Re-sort users by updated workload
+            sorted_users = sorted(available_users, key=lambda u: user_workloads[u.id])
+
+    return True
+
+# Route for distributing applications among checkers
+@app.route('/distribute-applications', methods=['GET', 'POST'])
+@login_required
+@role_required('checker')  # Only checkers can distribute applications
+def distribute_applications():
+    # Get all available checkers with their product expertise
+    available_checkers = User.query.filter_by(role=ROLE_CHECKER, available=True).all()
+
+    # Get all pending checker applications
+    pending_applications = LoanApplication.query.filter_by(status=LoanApplication.STATUS_PENDING_CHECKER, checker=None).all()
+
+    # Group applications by product type
+    applications_by_product = {}
+    for app in pending_applications:
+        if app.product_type not in applications_by_product:
+            applications_by_product[app.product_type] = []
+        applications_by_product[app.product_type].append(app)
+
+    if request.method == 'POST':
+        # Check if auto-distribute button was clicked
+        if 'auto_distribute' in request.form:
+            # Auto-distribute applications
+            if auto_distribute_applications(applications_by_product, available_checkers, ROLE_CHECKER):
+                db.session.commit()
+                flash('Applications have been auto-distributed successfully!', 'success')
+                return redirect(url_for('index'))
+            else:
+                flash('No applications to distribute or no available checkers.', 'warning')
+                return redirect(url_for('distribute_applications'))
+        else:
+            # Manual distribution
+            for app_id in request.form.getlist('application_ids'):
+                checker_id = request.form.get(f'checker_{app_id}')
+                if checker_id:
+                    app = LoanApplication.query.get(app_id)
+                    checker = User.query.get(checker_id)
+                    if app and checker:
+                        app.checker = checker.username
+                        app.checker_id = checker.id
+
+            db.session.commit()
+            flash('Applications have been distributed successfully!', 'success')
+            return redirect(url_for('index'))
+
+    # Get the Flask app instance from current_app
+    from flask import current_app
+    return render_template('distribute.html',
+                           title='Distribute Applications',
+                           available_checkers=available_checkers,
+                           pending_applications=pending_applications,
+                           applications_by_product=applications_by_product,
+                           enable_product_expertise=current_app.config['ENABLE_PRODUCT_EXPERTISE'],
+                           LoanApplication=LoanApplication)
+
+
+# Route for distributing applications among authors
+@app.route('/distribute-author-applications', methods=['GET', 'POST'])
+@login_required
+@role_required('author')  # Only authors can distribute applications
+def distribute_author_applications():
+    # Get all available authors with their product expertise
+    available_authors = User.query.filter_by(role=ROLE_AUTHOR, available=True).all()
+
+    # Get all pending author applications
+    pending_applications = LoanApplication.query.filter_by(status=LoanApplication.STATUS_PENDING_AUTHOR, author=None).all()
+
+    # Group applications by product type
+    applications_by_product = {}
+    for app in pending_applications:
+        if app.product_type not in applications_by_product:
+            applications_by_product[app.product_type] = []
+        applications_by_product[app.product_type].append(app)
+
+    if request.method == 'POST':
+        # Check if auto-distribute button was clicked
+        if 'auto_distribute' in request.form:
+            # Auto-distribute applications
+            if auto_distribute_applications(applications_by_product, available_authors, ROLE_AUTHOR):
+                db.session.commit()
+                flash('Applications have been auto-distributed successfully!', 'success')
+                return redirect(url_for('index'))
+            else:
+                flash('No applications to distribute or no available authors.', 'warning')
+                return redirect(url_for('distribute_author_applications'))
+        else:
+            # Manual distribution
+            for app_id in request.form.getlist('application_ids'):
+                author_id = request.form.get(f'author_{app_id}')
+                if author_id:
+                    app = LoanApplication.query.get(app_id)
+                    author = User.query.get(author_id)
+                    if app and author:
+                        app.author = author.username
+                        app.author_id = author.id
+
+            db.session.commit()
+            flash('Applications have been distributed successfully!', 'success')
+            return redirect(url_for('index'))
+
+    # Get the Flask app instance from current_app
+    from flask import current_app
+    return render_template('distribute_author.html',
+                           title='Distribute Applications to Authors',
+                           available_authors=available_authors,
+                           pending_applications=pending_applications,
+                           applications_by_product=applications_by_product,
+                           enable_product_expertise=current_app.config['ENABLE_PRODUCT_EXPERTISE'],
+                           LoanApplication=LoanApplication)
+
+
+# Route for toggling user availability
+@app.route('/toggle-availability/<int:id>', methods=['POST'])
+@login_required
+def toggle_availability(id):
+    user = User.query.get_or_404(id)
+
+    # Only allow users to toggle their own availability or authors to toggle anyone's
+    if current_user.id == user.id or current_user.is_author():
+        user.available = not user.available
+        db.session.commit()
+        status = 'available' if user.available else 'unavailable'
+        flash(f'User {user.username} is now {status}', 'success')
+    else:
+        flash('You do not have permission to change this user\'s availability', 'danger')
+
+    return redirect(request.referrer or url_for('users'))
 
 
 @app.route('/view/<int:id>')
@@ -568,6 +802,236 @@ def check_updates():
         'updates': updates,
         'server_time': datetime.utcnow().isoformat()
     })
+
+# Route for viewing assigned cases for checkers
+@app.route('/assigned-cases/checker')
+@login_required
+@role_required('checker')
+def assigned_cases_checker():
+    # Get all applications assigned to the current checker
+    assigned_applications = LoanApplication.query.filter_by(
+        checker_id=current_user.id,
+        status=LoanApplication.STATUS_PENDING_CHECKER
+    ).order_by(LoanApplication.updated_at.desc()).all()
+
+    # Group applications by product type
+    applications_by_product = {}
+    for app in assigned_applications:
+        if app.product_type not in applications_by_product:
+            applications_by_product[app.product_type] = []
+        applications_by_product[app.product_type].append(app)
+
+    return render_template('assigned_cases.html',
+                          title='My Assigned Cases',
+                          applications_by_product=applications_by_product,
+                          role='checker',
+                          LoanApplication=LoanApplication)
+
+# Route for viewing assigned cases for authors
+@app.route('/assigned-cases/author')
+@login_required
+@role_required('author')
+def assigned_cases_author():
+    # Get all applications assigned to the current author
+    assigned_applications = LoanApplication.query.filter_by(
+        author_id=current_user.id,
+        status=LoanApplication.STATUS_PENDING_AUTHOR
+    ).order_by(LoanApplication.updated_at.desc()).all()
+
+    # Group applications by product type
+    applications_by_product = {}
+    for app in assigned_applications:
+        if app.product_type not in applications_by_product:
+            applications_by_product[app.product_type] = []
+        applications_by_product[app.product_type].append(app)
+
+    return render_template('assigned_cases.html',
+                          title='My Assigned Cases',
+                          applications_by_product=applications_by_product,
+                          role='author',
+                          LoanApplication=LoanApplication)
+
+# Route for exporting assigned cases to Excel for checkers
+@app.route('/export-cases/checker')
+@login_required
+@role_required('checker')
+def export_cases_checker():
+    # Get all applications assigned to the current checker
+    assigned_applications = LoanApplication.query.filter_by(
+        checker_id=current_user.id,
+        status=LoanApplication.STATUS_PENDING_CHECKER
+    ).order_by(LoanApplication.updated_at.desc()).all()
+
+    # Export to Excel
+    output, filename = export_applications_to_excel(
+        applications=assigned_applications,
+        filename_prefix='assigned_cases_checker',
+        include_checker=False,
+        include_author=False,
+        include_rejection=False
+    )
+
+    # Return the Excel file
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+
+# Route for exporting assigned cases to Excel for authors
+@app.route('/export-cases/author')
+@login_required
+@role_required('author')
+def export_cases_author():
+    # Get all applications assigned to the current author
+    assigned_applications = LoanApplication.query.filter_by(
+        author_id=current_user.id,
+        status=LoanApplication.STATUS_PENDING_AUTHOR
+    ).order_by(LoanApplication.updated_at.desc()).all()
+
+    # Export to Excel
+    output, filename = export_applications_to_excel(
+        applications=assigned_applications,
+        filename_prefix='assigned_cases_author',
+        include_checker=True,
+        include_author=False,
+        include_rejection=False
+    )
+
+    # Return the Excel file
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+
+# Route for exporting all distributed applications for checkers
+@app.route('/export-distribution/checker')
+@login_required
+@role_required('checker')
+def export_distribution_checker():
+    # Get all applications that have been distributed to checkers
+    distributed_applications = LoanApplication.query.filter(
+        LoanApplication.checker_id.isnot(None),
+        LoanApplication.status == LoanApplication.STATUS_PENDING_CHECKER
+    ).order_by(LoanApplication.updated_at.desc()).all()
+
+    # Group applications by checker
+    applications_by_checker = {}
+    for app in distributed_applications:
+        checker = User.query.get(app.checker_id)
+        if checker:
+            if checker.username not in applications_by_checker:
+                applications_by_checker[checker.username] = []
+            applications_by_checker[checker.username].append(app)
+
+    # Export to Excel
+    output, filename = export_distribution_to_excel(
+        applications_by_user=applications_by_checker,
+        filename_prefix='distribution_checker',
+        role_type='checker'
+    )
+
+    # Return the Excel file
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+
+# Route for exporting all distributed applications for authors
+@app.route('/export-distribution/author')
+@login_required
+@role_required('author')
+def export_distribution_author():
+    # Get all applications that have been distributed to authors
+    distributed_applications = LoanApplication.query.filter(
+        LoanApplication.author_id.isnot(None),
+        LoanApplication.status == LoanApplication.STATUS_PENDING_AUTHOR
+    ).order_by(LoanApplication.updated_at.desc()).all()
+
+    # Group applications by author
+    applications_by_author = {}
+    for app in distributed_applications:
+        author = User.query.get(app.author_id)
+        if author:
+            if author.username not in applications_by_author:
+                applications_by_author[author.username] = []
+            applications_by_author[author.username].append(app)
+
+    # Export to Excel
+    output, filename = export_distribution_to_excel(
+        applications_by_user=applications_by_author,
+        filename_prefix='distribution_author',
+        role_type='author'
+    )
+
+    # Return the Excel file
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+
+# Route for exporting productivity report
+@app.route('/export-productivity-report')
+@login_required
+@role_required('author')  # Only authors (admin role) can access this report
+def export_productivity_report():
+    # Get all users
+    users = User.query.all()
+
+    # Initialize productivity data structure
+    productivity_data = {
+        'maker': [],
+        'checker': [],
+        'author': []
+    }
+
+    # Calculate productivity for makers
+    for user in users:
+        if user.role == ROLE_MAKER:
+            # Count all applications created by this maker
+            count = LoanApplication.query.filter_by(maker_id=user.id).count()
+            productivity_data['maker'].append({
+                'username': user.username,
+                'count': count
+            })
+        elif user.role == ROLE_CHECKER:
+            # Count all applications processed by this checker (not in pending_checker status)
+            count = LoanApplication.query.filter(
+                LoanApplication.checker_id == user.id,
+                LoanApplication.status != LoanApplication.STATUS_PENDING_CHECKER
+            ).count()
+            productivity_data['checker'].append({
+                'username': user.username,
+                'count': count
+            })
+        elif user.role == ROLE_AUTHOR:
+            # Count all applications processed by this author (approved or rejected)
+            count = LoanApplication.query.filter(
+                LoanApplication.author_id == user.id,
+                LoanApplication.status.in_([LoanApplication.STATUS_APPROVED, LoanApplication.STATUS_REJECTED])
+            ).count()
+            productivity_data['author'].append({
+                'username': user.username,
+                'count': count
+            })
+
+    # Export to Excel
+    output, filename = export_productivity_report_to_excel(productivity_data)
+
+    # Return the Excel file
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
 
 # Create all tables
 with app.app_context():

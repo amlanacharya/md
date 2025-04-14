@@ -1,0 +1,148 @@
+<!-- templates/distribute_author.html -->
+{% extends "layout.html" %}
+
+{% block title %}Distribute Applications to Authors - Loan Management System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Distribute Applications to Authors</h1>
+    <div>
+        <a href="{{ url_for('assigned_cases_author') }}" class="btn btn-info">
+            <i class="bi bi-list-check"></i> View Assigned Cases
+        </a>
+        <a href="{{ url_for('export_cases_author') }}" class="btn btn-success ms-2">
+            <i class="bi bi-file-earmark-excel"></i> Export My Assigned Cases
+        </a>
+        <a href="{{ url_for('export_distribution_author') }}" class="btn btn-success ms-2">
+            <i class="bi bi-file-earmark-excel"></i> Export All Distributed Cases
+        </a>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary ms-2">
+            <i class="bi bi-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h2 class="mb-0">Available Authors</h2>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                {% if enable_product_expertise %}
+                                <th>Product Expertise</th>
+                                {% endif %}
+                                <th>Current Workload</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for author in available_authors %}
+                            <tr>
+                                <td>{{ author.username }}</td>
+                                {% if enable_product_expertise %}
+                                <td>
+                                    {% if author.product_expertise %}
+                                    <span class="badge bg-primary">{{ author.product_expertise }}</span>
+                                    {% else %}
+                                    <span class="text-muted">None</span>
+                                    {% endif %}
+                                </td>
+                                {% endif %}
+                                <td>
+                                    {% set workload = LoanApplication.query.filter_by(author_id=author.id, status=LoanApplication.STATUS_PENDING_AUTHOR).count() %}
+                                    <div class="progress">
+                                        <div class="progress-bar {% if workload < 3 %}bg-success{% elif workload < 6 %}bg-warning{% else %}bg-danger{% endif %}"
+                                             role="progressbar"
+                                             style="width: {{ workload * 10 }}%;"
+                                             aria-valuenow="{{ workload }}"
+                                             aria-valuemin="0"
+                                             aria-valuemax="10">
+                                            {{ workload }} applications
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="POST" action="{{ url_for('distribute_author_applications') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    {% for product_type, applications in applications_by_product.items() %}
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h3 class="mb-0">{{ product_type }} Applications ({{ applications|length }})</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Select</th>
+                            <th>Application ID</th>
+                            <th>Customer Name</th>
+                            <th>Loan Amount</th>
+                            <th>Date</th>
+                            <th>Assign To</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for app in applications %}
+                        <tr>
+                            <td>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="application_ids" value="{{ app.id }}" id="app_{{ app.id }}">
+                                    <label class="form-check-label" for="app_{{ app.id }}"></label>
+                                </div>
+                            </td>
+                            <td>{{ app.application_id }}</td>
+                            <td>{{ app.customer_name }}</td>
+                            <td>{{ app.loan_amount }}</td>
+                            <td>{{ app.date }}</td>
+                            <td>
+                                <select name="author_{{ app.id }}" class="form-select">
+                                    <option value="">-- Select Author --</option>
+                                    {% for author in available_authors %}
+                                    <option value="{{ author.id }}" {% if enable_product_expertise and author.product_expertise == app.product_type %}class="text-success fw-bold"{% endif %}>
+                                        {{ author.username }}
+                                        {% if enable_product_expertise and author.product_expertise == app.product_type %}(Expert){% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> No pending applications to distribute.
+    </div>
+    {% endfor %}
+
+    {% if pending_applications %}
+    <div class="d-flex justify-content-center gap-3 mt-4 mb-5">
+        <button type="submit" class="btn btn-primary btn-lg">
+            <i class="bi bi-check2-circle"></i> Distribute Selected Applications
+        </button>
+        <button type="submit" name="auto_distribute" value="true" class="btn btn-success btn-lg">
+            <i class="bi bi-magic"></i> Auto-Distribute All Applications
+        </button>
+    </div>
+    {% endif %}
+</form>
+{% endblock %}

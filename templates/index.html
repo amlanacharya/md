@@ -15,7 +15,14 @@
 {% if status_counts %}
 <div class="card mb-4">
     <div class="card-header bg-light">
-        <h5 class="mb-0">Dashboard</h5>
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Dashboard</h5>
+            {% if current_user.is_author() %}
+            <a href="{{ url_for('export_productivity_report') }}" class="btn btn-sm btn-success">
+                <i class="bi bi-file-earmark-excel"></i> Export Productivity Report
+            </a>
+            {% endif %}
+        </div>
     </div>
     <div class="card-body">
         <div class="row text-center">

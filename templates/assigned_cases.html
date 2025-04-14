@@ -1,0 +1,92 @@
+<!-- templates/assigned_cases.html -->
+{% extends "layout.html" %}
+
+{% block title %}My Assigned Cases - Loan Management System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>My Assigned Cases</h1>
+    <div>
+        <a href="{{ url_for('export_cases_' + role) }}" class="btn btn-success">
+            <i class="bi bi-file-earmark-excel"></i> Export to Excel
+        </a>
+        <a href="{{ url_for('export_distribution_' + role) }}" class="btn btn-success ms-2">
+            <i class="bi bi-file-earmark-excel"></i> Export All Distributed Cases
+        </a>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary ms-2">
+            <i class="bi bi-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+{% if not applications_by_product %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> You don't have any assigned cases at the moment.
+</div>
+{% endif %}
+
+{% for product_type, applications in applications_by_product.items() %}
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h3 class="mb-0">{{ product_type }} Applications ({{ applications|length }})</h3>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Application ID</th>
+                        <th>Customer Name</th>
+                        <th>Loan Amount</th>
+                        <th>Date</th>
+                        <th>Branch Location</th>
+                        <th>Maker</th>
+                        {% if role == 'author' %}
+                        <th>Checker</th>
+                        {% endif %}
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for app in applications %}
+                    <tr>
+                        <td>{{ app.application_id }}</td>
+                        <td>{{ app.customer_name }}</td>
+                        <td>{{ app.loan_amount }}</td>
+                        <td>{{ app.date }}</td>
+                        <td>{{ app.branch_location }}</td>
+                        <td>{{ app.maker }}</td>
+                        {% if role == 'author' %}
+                        <td>{{ app.checker }}</td>
+                        {% endif %}
+                        <td>
+                            {% if app.status == 'draft' %}
+                                <span class="badge bg-secondary">Draft</span>
+                            {% elif app.status == 'pending_checker' %}
+                                <span class="badge bg-info">Pending Checker</span>
+                            {% elif app.status == 'pending_author' %}
+                                <span class="badge bg-warning">Pending Author</span>
+                            {% elif app.status == 'approved' %}
+                                <span class="badge bg-success">Approved</span>
+                            {% elif app.status == 'rejected' %}
+                                <span class="badge bg-danger">Rejected</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('view_loan', id=app.id) }}" class="btn btn-sm btn-info">
+                                <i class="bi bi-eye"></i> View
+                            </a>
+                            <a href="{{ url_for('edit_loan', id=app.id) }}" class="btn btn-sm btn-warning">
+                                <i class="bi bi-pencil"></i> Edit
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
