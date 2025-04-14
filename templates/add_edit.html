@@ -257,8 +257,30 @@
                 </div>
             </div>
             
+            <!-- Author Approval Option -->
+            {% if current_user.is_author() and title == 'Edit Loan Application' and loan_application.status == 'pending_author' %}
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <div class="card border-success mb-3">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">Author Final Approval</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-check">
+                                {{ form.approve(class="form-check-input") }}
+                                <label class="form-check-label" for="approve">
+                                    <span class="text-success fw-bold">Final approval for this application</span>
+                                    <small class="text-muted d-block">By checking this box, you confirm that you have reviewed and give final approval for this loan application.</small>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
             <!-- Checker Approval Option -->
-            {% if current_user.is_checker() and title == 'Edit Loan Application' %}
+            {% if current_user.is_checker() and title == 'Edit Loan Application' and loan_application.status == 'pending_checker' %}
             <div class="row mb-3">
                 <div class="col-md-12">
                     <div class="card border-success mb-3">

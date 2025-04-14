@@ -83,34 +83,52 @@ class User(db.Model, UserMixin):
         return f'<User {self.username}>'
 
 # Model for Loan Application
-class LoanApplication(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.Date, nullable=False, default=datetime.utcnow)
-    application_id = db.Column(db.String(50), unique=True, nullable=False)
-    customer_name = db.Column(db.String(100), nullable=False)
-    dealer_code = db.Column(db.String(50), nullable=False)
-    scheme_name = db.Column(db.String(100), nullable=False)
-    branch_location = db.Column(db.String(100), nullable=False)
-    product_type = db.Column(db.String(50), nullable=False)
-    loan_amount = db.Column(db.Float, nullable=False)
-    payment_amount = db.Column(db.Float, nullable=False)
-    processing_fee = db.Column(db.Float, nullable=False)
-    rto = db.Column(db.Float, nullable=False)
-    vap_amount = db.Column(db.Float, nullable=False)
-    beneficiary_name = db.Column(db.String(100), nullable=False)
-    beneficiary_account_number = db.Column(db.String(50), nullable=False)
-    beneficiary_ifsc = db.Column(db.String(20), nullable=False)
-    bank_name = db.Column(db.String(100), nullable=False)
-    branch_name = db.Column(db.String(100), nullable=False)
-    maker = db.Column(db.String(100), nullable=False)
-    checker = db.Column(db.String(100), nullable=True)
-    author = db.Column(db.String(100), nullable=True)
-    maker_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    checker_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    author_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    maker_user = db.relationship('User', foreign_keys=[maker_id])
-    checker_user = db.relationship('User', foreign_keys=[checker_id])
-    author_user = db.relationship('User', foreign_keys=[author_id])
+class LoanApplicationForm(FlaskForm):
+    date = DateField('Date', validators=[DataRequired()], format='%Y-%m-%d')
+    application_id = StringField('Application ID', validators=[DataRequired()])
+    customer_name = StringField('Customer Name', validators=[DataRequired()])
+    dealer_code = StringField('Dealer Code', validators=[DataRequired()])
+    scheme_name = StringField('Scheme Name', validators=[DataRequired()])
+    branch_location = StringField('Branch Location', validators=[DataRequired()])
+    product_type = StringField('Product Type', validators=[DataRequired()])
+    loan_amount = FloatField('Loan Amount', validators=[DataRequired()])
+    payment_amount = FloatField('Payment Amount', validators=[DataRequired()])
+    processing_fee = FloatField('Processing Fee', validators=[DataRequired()])
+    rto = FloatField('RTO', validators=[DataRequired()])
+    vap_amount = FloatField('VAP Amount', validators=[DataRequired()])
+    beneficiary_name = StringField('Beneficiary Name', validators=[DataRequired()])
+    beneficiary_account_number = StringField('Beneficiary Account Number', validators=[DataRequired()])
+    beneficiary_ifsc = StringField('Beneficiary IFSC', validators=[DataRequired()])
+    bank_name = StringField('Bank Name', validators=[DataRequired()])
+    branch_name = StringField('Branch Name', validators=[DataRequired()])
+    maker = StringField('Maker', validators=[DataRequired()])
+    checker = StringField('Checker', validators=[])
+    author = StringField('Author', validators=[])
+    # Add approval field
+    approve = BooleanField('Approve Application')
+    submit = SubmitField('Submit')
+
+    def __init__(self, *args, **kwargs):
+        super(LoanApplicationForm, self).__init__(*args, **kwargs)
+        
+        # Adjust field access based on user role
+        if current_user.is_authenticated:
+            if current_user.is_maker():
+                # Maker can only edit maker field
+                self.checker.render_kw = {'readonly': True}
+                self.author.render_kw = {'readonly': True}
+                
+            elif current_user.is_checker():
+                # Checker can edit maker and checker fields
+                self.author.render_kw = {'readonly': True}
+                # Auto-populate checker field with current checker's username
+                if not self.checker.data:
+                    self.checker.data = current_user.username
+                    
+            elif current_user.is_author():
+                # Auto-populate author field with current author's username
+                if not self.author.data:
+                    self.author.data = current_user.username
     
     # Status tracking
     STATUS_DRAFT = 'draft'
@@ -284,6 +302,10 @@ def edit_loan(id):
     if current_user.is_checker() and not loan_application.checker:
         form.checker.data = current_user.username
     
+    # For authors, auto-populate their username in author field if empty
+    if current_user.is_author() and not loan_application.author:
+        form.author.data = current_user.username
+    
     if form.validate_on_submit():
         # Validate field access by role
         if current_user.is_maker():
@@ -320,10 +342,13 @@ def edit_loan(id):
             loan_application.maker = form.maker.data
             loan_application.checker = form.checker.data
             loan_application.author = form.author.data or current_user.username
-            if form.author.data == current_user.username or not loan_application.author:
-                loan_application.author_id = current_user.id
+            loan_application.author_id = current_user.id
+            
+            # If author approves, change status to approved
+            if form.approve.data:
                 loan_application.status = LoanApplication.STATUS_APPROVED
-                
+                flash('Application has been approved!', 'success')
+            
         elif current_user.is_checker():
             loan_application.maker = form.maker.data
             loan_application.checker = form.checker.data or current_user.username
