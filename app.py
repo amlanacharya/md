@@ -977,6 +977,76 @@ def export_distribution_author():
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
 
+# Route for exporting all cases with sorting options
+@app.route('/export-all-cases')
+@login_required
+def export_all_cases():
+    # Get sorting parameters
+    sort_by = request.args.get('sort_by', 'updated_at')
+    sort_order = request.args.get('sort_order', 'desc')
+    status_filter = request.args.get('status', '')
+    search_term = request.args.get('search', '')
+
+    # Base query
+    query = LoanApplication.query
+
+    # Apply role-based filtering
+    if current_user.is_maker():
+        # Makers see applications they created
+        query = query.filter_by(maker_id=current_user.id)
+    elif current_user.is_checker():
+        # Checkers see applications waiting for checker approval and those they've checked
+        query = query.filter(
+            (LoanApplication.status == LoanApplication.STATUS_PENDING_CHECKER) |
+            (LoanApplication.checker_id == current_user.id)
+        )
+    # Authors see all applications (no additional filter)
+
+    # Apply status filter if provided
+    if status_filter:
+        query = query.filter(LoanApplication.status == status_filter)
+
+    # Apply search filter if provided
+    if search_term:
+        search_pattern = f'%{search_term}%'
+        query = query.filter(
+            (LoanApplication.customer_name.like(search_pattern)) |
+            (LoanApplication.application_id.like(search_pattern)) |
+            (LoanApplication.product_type.like(search_pattern))
+        )
+
+    # Apply sorting
+    sort_column = getattr(LoanApplication, sort_by, LoanApplication.updated_at)
+    if sort_order == 'desc':
+        query = query.order_by(sort_column.desc())
+    else:
+        query = query.order_by(sort_column.asc())
+
+    # Get all applications
+    applications = query.all()
+
+    # Determine which fields to include based on user role
+    include_checker = current_user.is_checker() or current_user.is_author()
+    include_author = current_user.is_author()
+    include_rejection = current_user.is_author()
+
+    # Export to Excel
+    output, filename = export_applications_to_excel(
+        applications=applications,
+        filename_prefix='all_cases',
+        include_checker=include_checker,
+        include_author=include_author,
+        include_rejection=include_rejection
+    )
+
+    # Return the Excel file
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+
 # Route for exporting productivity report
 @app.route('/export-productivity-report')
 @login_required

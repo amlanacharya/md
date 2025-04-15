@@ -92,6 +92,23 @@
                 {% endif %}
             </h2>
             <div>
+                <div class="dropdown d-inline-block me-2">
+                    <button class="btn btn-success dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-file-earmark-excel"></i> Export
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="exportDropdown">
+                        <li><h6 class="dropdown-header">Sort by</h6></li>
+                        <li><a class="dropdown-item" href="{{ url_for('export_all_cases', sort_by='date', sort_order='desc', status=status_filter, search=search_term) }}">Date (newest first)</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('export_all_cases', sort_by='date', sort_order='asc', status=status_filter, search=search_term) }}">Date (oldest first)</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('export_all_cases', sort_by='loan_amount', sort_order='desc', status=status_filter, search=search_term) }}">Loan Amount (highest first)</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('export_all_cases', sort_by='loan_amount', sort_order='asc', status=status_filter, search=search_term) }}">Loan Amount (lowest first)</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('export_all_cases', sort_by='customer_name', sort_order='asc', status=status_filter, search=search_term) }}">Customer Name (A-Z)</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('export_all_cases', sort_by='status', sort_order='asc', status=status_filter, search=search_term) }}">Status</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('export_all_cases', sort_by='product_type', sort_order='asc', status=status_filter, search=search_term) }}">Product Type</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ url_for('export_all_cases', status=status_filter, search=search_term) }}">Default Sort (Last Updated)</a></li>
+                    </ul>
+                </div>
                 <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="false" aria-controls="filterCollapse">
                     <i class="bi bi-funnel"></i> Filter & Search
                 </button>
