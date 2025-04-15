@@ -1,18 +1,20 @@
 <!-- templates/assigned_cases.html -->
 {% extends "layout.html" %}
 
-{% block title %}My Assigned Cases - Loan Management System{% endblock %}
+{% block title %}{% if role == 'maker' %}My Applications{% else %}My Assigned Cases{% endif %} - Loan Management System{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>My Assigned Cases</h1>
+    <h1>{% if role == 'maker' %}My Applications{% else %}My Assigned Cases{% endif %}</h1>
     <div>
         <a href="{{ url_for('export_cases_' + role) }}" class="btn btn-success">
             <i class="bi bi-file-earmark-excel"></i> Export to Excel
         </a>
+        {% if role != 'maker' %}
         <a href="{{ url_for('export_distribution_' + role) }}" class="btn btn-success ms-2">
             <i class="bi bi-file-earmark-excel"></i> Export All Distributed Cases
         </a>
+        {% endif %}
         <a href="{{ url_for('index') }}" class="btn btn-secondary ms-2">
             <i class="bi bi-arrow-left"></i> Back to Dashboard
         </a>
@@ -21,7 +23,12 @@
 
 {% if not applications_by_product %}
 <div class="alert alert-info">
-    <i class="bi bi-info-circle"></i> You don't have any assigned cases at the moment.
+    <i class="bi bi-info-circle"></i>
+    {% if role == 'maker' %}
+        You haven't created any applications yet.
+    {% else %}
+        You don't have any assigned cases at the moment.
+    {% endif %}
 </div>
 {% endif %}
 
@@ -41,8 +48,11 @@
                         <th>Date</th>
                         <th>Branch Location</th>
                         <th>Maker</th>
-                        {% if role == 'author' %}
+                        {% if role == 'author' or role == 'maker' %}
                         <th>Checker</th>
+                        {% endif %}
+                        {% if role == 'maker' %}
+                        <th>Author</th>
                         {% endif %}
                         <th>Status</th>
                         <th>Actions</th>
@@ -57,8 +67,11 @@
                         <td>{{ app.date }}</td>
                         <td>{{ app.branch_location }}</td>
                         <td>{{ app.maker }}</td>
-                        {% if role == 'author' %}
+                        {% if role == 'author' or role == 'maker' %}
                         <td>{{ app.checker }}</td>
+                        {% endif %}
+                        {% if role == 'maker' %}
+                        <td>{{ app.author }}</td>
                         {% endif %}
                         <td>
                             {% if app.status == 'draft' %}

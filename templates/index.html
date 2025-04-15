@@ -94,19 +94,20 @@
             <div>
                 <div class="dropdown d-inline-block me-2">
                     <button class="btn btn-success dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-file-earmark-excel"></i> Export
+                        <i class="bi bi-file-earmark-excel"></i> Export Queue
                     </button>
                     <ul class="dropdown-menu" aria-labelledby="exportDropdown">
                         <li><h6 class="dropdown-header">Sort by</h6></li>
-                        <li><a class="dropdown-item" href="{{ url_for('export_all_cases', sort_by='date', sort_order='desc', status=status_filter, search=search_term) }}">Date (newest first)</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('export_all_cases', sort_by='date', sort_order='asc', status=status_filter, search=search_term) }}">Date (oldest first)</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('export_all_cases', sort_by='loan_amount', sort_order='desc', status=status_filter, search=search_term) }}">Loan Amount (highest first)</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('export_all_cases', sort_by='loan_amount', sort_order='asc', status=status_filter, search=search_term) }}">Loan Amount (lowest first)</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('export_all_cases', sort_by='customer_name', sort_order='asc', status=status_filter, search=search_term) }}">Customer Name (A-Z)</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('export_all_cases', sort_by='status', sort_order='asc', status=status_filter, search=search_term) }}">Status</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('export_all_cases', sort_by='product_type', sort_order='asc', status=status_filter, search=search_term) }}">Product Type</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('export_queue', sort_by='date', sort_order='desc', status=status_filter, search=search_term) }}">Date (newest first)</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('export_queue', sort_by='date', sort_order='asc', status=status_filter, search=search_term) }}">Date (oldest first)</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('export_queue', sort_by='loan_amount', sort_order='desc', status=status_filter, search=search_term) }}">Loan Amount (highest first)</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('export_queue', sort_by='loan_amount', sort_order='asc', status=status_filter, search=search_term) }}">Loan Amount (lowest first)</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('export_queue', sort_by='customer_name', sort_order='asc', status=status_filter, search=search_term) }}">Customer Name (A-Z)</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('export_queue', sort_by='status', sort_order='asc', status=status_filter, search=search_term) }}">Status</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('export_queue', sort_by='product_type', sort_order='asc', status=status_filter, search=search_term) }}">Product Type</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('export_queue', sort_by='branch_location', sort_order='asc', status=status_filter, search=search_term) }}">Branch Location</a></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{{ url_for('export_all_cases', status=status_filter, search=search_term) }}">Default Sort (Last Updated)</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('export_queue', status=status_filter, search=search_term) }}">Default Sort (Last Updated)</a></li>
                     </ul>
                 </div>
                 <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="false" aria-controls="filterCollapse">
@@ -118,6 +119,9 @@
     <div class="collapse" id="filterCollapse">
         <div class="card-body bg-light">
             <form method="GET" action="{{ url_for('index') }}" class="row g-3">
+                <!-- Hidden fields to maintain sorting when filtering -->
+                <input type="hidden" name="sort_by" value="{{ request.args.get('sort_by', 'updated_at') }}">
+                <input type="hidden" name="sort_order" value="{{ request.args.get('sort_order', 'desc') }}">
                 <div class="col-md-4">
                     <label for="status" class="form-label">Status</label>
                     <select name="status" id="status" class="form-select">
@@ -146,12 +150,47 @@
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>Date</th>
-                        <th>Customer Name</th>
+                        <th>
+                            <a href="{{ url_for('index', page=1, sort_by='date', sort_order='desc' if request.args.get('sort_by') == 'date' and request.args.get('sort_order') == 'asc' else 'asc', status=status_filter, search=search_term) }}" class="text-decoration-none text-dark">
+                                Date
+                                {% if request.args.get('sort_by') == 'date' %}
+                                    <i class="bi bi-arrow-{{ 'up' if request.args.get('sort_order') == 'asc' else 'down' }}"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('index', page=1, sort_by='customer_name', sort_order='desc' if request.args.get('sort_by') == 'customer_name' and request.args.get('sort_order') == 'asc' else 'asc', status=status_filter, search=search_term) }}" class="text-decoration-none text-dark">
+                                Customer Name
+                                {% if request.args.get('sort_by') == 'customer_name' %}
+                                    <i class="bi bi-arrow-{{ 'up' if request.args.get('sort_order') == 'asc' else 'down' }}"></i>
+                                {% endif %}
+                            </a>
+                        </th>
                         <th>Application ID</th>
-                        <th>Loan Amount</th>
-                        <th>Product Type</th>
-                        <th>Status</th>
+                        <th>
+                            <a href="{{ url_for('index', page=1, sort_by='loan_amount', sort_order='desc' if request.args.get('sort_by') == 'loan_amount' and request.args.get('sort_order') == 'asc' else 'asc', status=status_filter, search=search_term) }}" class="text-decoration-none text-dark">
+                                Loan Amount
+                                {% if request.args.get('sort_by') == 'loan_amount' %}
+                                    <i class="bi bi-arrow-{{ 'up' if request.args.get('sort_order') == 'asc' else 'down' }}"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('index', page=1, sort_by='product_type', sort_order='desc' if request.args.get('sort_by') == 'product_type' and request.args.get('sort_order') == 'asc' else 'asc', status=status_filter, search=search_term) }}" class="text-decoration-none text-dark">
+                                Product Type
+                                {% if request.args.get('sort_by') == 'product_type' %}
+                                    <i class="bi bi-arrow-{{ 'up' if request.args.get('sort_order') == 'asc' else 'down' }}"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('index', page=1, sort_by='status', sort_order='desc' if request.args.get('sort_by') == 'status' and request.args.get('sort_order') == 'asc' else 'asc', status=status_filter, search=search_term) }}" class="text-decoration-none text-dark">
+                                Status
+                                {% if request.args.get('sort_by') == 'status' %}
+                                    <i class="bi bi-arrow-{{ 'up' if request.args.get('sort_order') == 'asc' else 'down' }}"></i>
+                                {% endif %}
+                            </a>
+                        </th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -253,7 +292,7 @@
                     <!-- Previous page -->
                     {% if pagination.has_prev %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('index', page=pagination.prev_num, status=status_filter, search=search_term) }}" aria-label="Previous">
+                            <a class="page-link" href="{{ url_for('index', page=pagination.prev_num, status=status_filter, search=search_term, sort_by=request.args.get('sort_by', 'updated_at'), sort_order=request.args.get('sort_order', 'desc')) }}" aria-label="Previous">
                                 <span aria-hidden="true">&laquo;</span>
                             </a>
                         </li>
@@ -270,7 +309,7 @@
                                 <li class="page-item active"><span class="page-link">{{ page_num }}</span></li>
                             {% else %}
                                 <li class="page-item">
-                                    <a class="page-link" href="{{ url_for('index', page=page_num, status=status_filter, search=search_term) }}">{{ page_num }}</a>
+                                    <a class="page-link" href="{{ url_for('index', page=page_num, status=status_filter, search=search_term, sort_by=request.args.get('sort_by', 'updated_at'), sort_order=request.args.get('sort_order', 'desc')) }}">{{ page_num }}</a>
                                 </li>
                             {% endif %}
                         {% else %}
@@ -281,7 +320,7 @@
                     <!-- Next page -->
                     {% if pagination.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('index', page=pagination.next_num, status=status_filter, search=search_term) }}" aria-label="Next">
+                            <a class="page-link" href="{{ url_for('index', page=pagination.next_num, status=status_filter, search=search_term, sort_by=request.args.get('sort_by', 'updated_at'), sort_order=request.args.get('sort_order', 'desc')) }}" aria-label="Next">
                                 <span aria-hidden="true">&raquo;</span>
                             </a>
                         </li>

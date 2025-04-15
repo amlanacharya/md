@@ -254,6 +254,8 @@ def index(page=1):
     # Get filter parameters
     status_filter = request.args.get('status', '')
     search_term = request.args.get('search', '')
+    sort_by = request.args.get('sort_by', 'updated_at')
+    sort_order = request.args.get('sort_order', 'desc')
     per_page = 10  # Number of items per page
 
     # Base query
@@ -284,8 +286,12 @@ def index(page=1):
             (LoanApplication.product_type.like(search_pattern))
         )
 
-    # Order by most recent first
-    query = query.order_by(LoanApplication.updated_at.desc())
+    # Apply sorting
+    sort_column = getattr(LoanApplication, sort_by, LoanApplication.updated_at)
+    if sort_order == 'desc':
+        query = query.order_by(sort_column.desc())
+    else:
+        query = query.order_by(sort_column.asc())
 
     # Paginate the results
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
@@ -307,6 +313,8 @@ def index(page=1):
         pagination=pagination,
         status_filter=status_filter,
         search_term=search_term,
+        sort_by=sort_by,
+        sort_order=sort_order,
         status_counts=status_counts
     )
 
@@ -978,29 +986,17 @@ def export_distribution_author():
     )
 
 # Route for exporting all cases with sorting options
-@app.route('/export-all-cases')
+@app.route('/export-queue')
 @login_required
-def export_all_cases():
+def export_queue():
     # Get sorting parameters
     sort_by = request.args.get('sort_by', 'updated_at')
     sort_order = request.args.get('sort_order', 'desc')
     status_filter = request.args.get('status', '')
     search_term = request.args.get('search', '')
 
-    # Base query
+    # Base query - all applications in the system
     query = LoanApplication.query
-
-    # Apply role-based filtering
-    if current_user.is_maker():
-        # Makers see applications they created
-        query = query.filter_by(maker_id=current_user.id)
-    elif current_user.is_checker():
-        # Checkers see applications waiting for checker approval and those they've checked
-        query = query.filter(
-            (LoanApplication.status == LoanApplication.STATUS_PENDING_CHECKER) |
-            (LoanApplication.checker_id == current_user.id)
-        )
-    # Authors see all applications (no additional filter)
 
     # Apply status filter if provided
     if status_filter:
@@ -1025,18 +1021,67 @@ def export_all_cases():
     # Get all applications
     applications = query.all()
 
-    # Determine which fields to include based on user role
-    include_checker = current_user.is_checker() or current_user.is_author()
-    include_author = current_user.is_author()
-    include_rejection = current_user.is_author()
+    # Include all relevant fields in the export
+    # Everyone should see maker, checker, and author information in the queue export
+    # Only include rejection information if the application is rejected
 
     # Export to Excel
     output, filename = export_applications_to_excel(
         applications=applications,
-        filename_prefix='all_cases',
-        include_checker=include_checker,
-        include_author=include_author,
-        include_rejection=include_rejection
+        filename_prefix='queue_export',
+        include_checker=True,
+        include_author=True,
+        include_rejection=True
+    )
+
+    # Return the Excel file
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+
+# Route for viewing assigned cases for makers
+@app.route('/assigned-cases/maker')
+@login_required
+@role_required('maker')
+def assigned_cases_maker():
+    # Get all applications created by the current maker
+    assigned_applications = LoanApplication.query.filter_by(
+        maker_id=current_user.id
+    ).order_by(LoanApplication.updated_at.desc()).all()
+
+    # Group applications by product type
+    applications_by_product = {}
+    for app in assigned_applications:
+        if app.product_type not in applications_by_product:
+            applications_by_product[app.product_type] = []
+        applications_by_product[app.product_type].append(app)
+
+    return render_template('assigned_cases.html',
+                          title='My Applications',
+                          applications_by_product=applications_by_product,
+                          role='maker',
+                          LoanApplication=LoanApplication)
+
+# Route for exporting assigned cases to Excel for makers
+@app.route('/export-cases/maker')
+@login_required
+@role_required('maker')
+def export_cases_maker():
+    # Get all applications created by the current maker
+    assigned_applications = LoanApplication.query.filter_by(
+        maker_id=current_user.id
+    ).order_by(LoanApplication.updated_at.desc()).all()
+
+    # Export to Excel
+    output, filename = export_applications_to_excel(
+        applications=assigned_applications,
+        filename_prefix='my_applications_maker',
+        include_checker=True,
+        include_author=True,
+        include_rejection=True
     )
 
     # Return the Excel file

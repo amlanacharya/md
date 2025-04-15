@@ -41,6 +41,13 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('add_loan') }}">Add New Loan</a>
                     </li>
+                    {% if current_user.is_maker() %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('assigned_cases_maker') }}">
+                            <i class="bi bi-list-check"></i> My Applications
+                        </a>
+                    </li>
+                    {% endif %}
                     {% if current_user.is_checker() %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('distribute_applications') }}">
