@@ -1,4 +1,4 @@
-# Loan Management System
+# OPTiMuS
 
 A comprehensive loan management system with approval workflows, real-time updates, and multi-user support.
 

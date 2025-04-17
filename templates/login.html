@@ -1,7 +1,7 @@
 <!-- templates/login.html -->
 {% extends "layout.html" %}
 
-{% block title %}Login - Loan Management System{% endblock %}
+{% block title %}Login - OPTiMuS{% endblock %}
 
 {% block content %}
 <div class="row">
@@ -13,7 +13,7 @@
             <div class="card-body">
                 <form method="POST" novalidate>
                     {{ form.csrf_token }}
-                    
+
                     <div class="form-group mb-3">
                         <label for="username">{{ form.username.label.text }}</label>
                         {{ form.username(class="form-control") }}
@@ -23,7 +23,7 @@
                             {% endfor %}
                         {% endif %}
                     </div>
-                    
+
                     <div class="form-group mb-3">
                         <label for="password">{{ form.password.label.text }}</label>
                         {{ form.password(class="form-control") }}
@@ -33,12 +33,12 @@
                             {% endfor %}
                         {% endif %}
                     </div>
-                    
+
                     <div class="form-check mb-3">
                         {{ form.remember(class="form-check-input") }}
                         <label class="form-check-label" for="remember">{{ form.remember.label.text }}</label>
                     </div>
-                    
+
                     <div class="form-group">
                         {{ form.submit(class="btn btn-primary w-100") }}
                     </div>
@@ -47,8 +47,8 @@
             <div class="card-footer text-center text-muted">
                 <p class="mb-1">Demo Accounts:</p>
                 <div class="small mb-0">
-                    <strong>Maker:</strong> maker / maker123 | 
-                    <strong>Checker:</strong> checker / checker123 | 
+                    <strong>Maker:</strong> maker / maker123 |
+                    <strong>Checker:</strong> checker / checker123 |
                     <strong>Author:</strong> admin / admin123
                 </div>
             </div>

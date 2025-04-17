@@ -29,8 +29,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Remove all theme classes
         document.body.classList.remove(
             'default-theme',
-            'futuristic-theme',
-            'dark-theme',
             'warm-theme',
             'corporate-theme'
         );

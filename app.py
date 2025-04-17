@@ -18,7 +18,7 @@ from excel_utils import export_applications_to_excel, export_distribution_to_exc
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'OADSECRET'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///loan_management.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///optimus.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Application configuration
@@ -1229,6 +1229,130 @@ def export_cases_maker():
 def products():
     products = Product.query.all()
     return render_template('products.html', title='Product Management', products=products)
+
+# Route for application manager
+@app.route('/application-manager')
+@login_required
+def application_manager():
+    # Get search parameters
+    search_type = request.args.get('search_type', 'user')
+    user_id = request.args.get('user_id', '')
+    application_id = request.args.get('application_id', '')
+    search_performed = bool(user_id or application_id)
+
+    # Initialize applications list
+    applications = []
+
+    # Get all users for the dropdown
+    all_users = User.query.all()
+
+    # Get users by role for the reassignment dropdowns
+    maker_users = User.query.filter_by(role=ROLE_MAKER, active=True).all()
+    checker_users = User.query.filter_by(role=ROLE_CHECKER, active=True).all()
+    author_users = User.query.filter_by(role=ROLE_AUTHOR, active=True).all()
+
+    # Convert user objects to dictionaries for JavaScript
+    maker_users_json = [{'id': user.id, 'username': user.username} for user in maker_users]
+    checker_users_json = [{'id': user.id, 'username': user.username} for user in checker_users]
+    author_users_json = [{'id': user.id, 'username': user.username} for user in author_users]
+
+    # Perform search if parameters are provided
+    if search_type == 'user' and user_id:
+        # Search by user ID
+        user = User.query.get(user_id)
+        if user:
+            if user.role == ROLE_MAKER:
+                # Get all applications where user is the maker
+                applications = LoanApplication.query.filter_by(maker_id=user.id).all()
+            elif user.role == ROLE_CHECKER:
+                # Get all applications where user is the checker
+                applications = LoanApplication.query.filter_by(checker_id=user.id).all()
+            elif user.role == ROLE_AUTHOR:
+                # Get all applications where user is the author
+                applications = LoanApplication.query.filter_by(author_id=user.id).all()
+
+    elif search_type == 'application' and application_id:
+        # Search by application ID
+        applications = LoanApplication.query.filter(LoanApplication.application_id.like(f'%{application_id}%')).all()
+
+    return render_template('application_manager.html',
+                           title='Application Manager',
+                           all_users=all_users,
+                           applications=applications,
+                           search_type=search_type,
+                           user_id=user_id,
+                           application_id=application_id,
+                           search_performed=search_performed,
+                           maker_users=maker_users_json,
+                           checker_users=checker_users_json,
+                           author_users=author_users_json)
+
+# Route for reassigning applications
+@app.route('/reassign-application/<int:app_id>', methods=['POST'])
+@login_required
+def reassign_application(app_id):
+    # Get the application
+    application = LoanApplication.query.get_or_404(app_id)
+
+    # Get form data
+    role_type = request.form.get('role_type')
+    new_user_id = request.form.get('new_user_id')
+
+    if not role_type or not new_user_id:
+        flash('Role type and new user must be specified.', 'danger')
+        return redirect(url_for('application_manager'))
+
+    # Get the new user
+    new_user = User.query.get(new_user_id)
+    if not new_user:
+        flash('Selected user not found.', 'danger')
+        return redirect(url_for('application_manager'))
+
+    # Validate that the new user has the correct role
+    if role_type == 'maker' and new_user.role != ROLE_MAKER:
+        flash('Selected user is not a Maker.', 'danger')
+        return redirect(url_for('application_manager'))
+    elif role_type == 'checker' and new_user.role != ROLE_CHECKER:
+        flash('Selected user is not a Checker.', 'danger')
+        return redirect(url_for('application_manager'))
+    elif role_type == 'author' and new_user.role != ROLE_AUTHOR:
+        flash('Selected user is not an Author.', 'danger')
+        return redirect(url_for('application_manager'))
+
+    # Update the application with the new assignment
+    if role_type == 'maker':
+        application.maker = new_user.username
+        application.maker_id = new_user.id
+    elif role_type == 'checker':
+        application.checker = new_user.username
+        application.checker_id = new_user.id
+        # If application is in draft status and being assigned to a checker, update status
+        if application.status == LoanApplication.STATUS_DRAFT:
+            application.status = LoanApplication.STATUS_PENDING_CHECKER
+            application.status_changed_at = datetime.utcnow()
+    elif role_type == 'author':
+        application.author = new_user.username
+        application.author_id = new_user.id
+        # If application is in pending checker status and being assigned to an author, update status
+        if application.status == LoanApplication.STATUS_PENDING_CHECKER:
+            application.status = LoanApplication.STATUS_PENDING_AUTHOR
+            application.status_changed_at = datetime.utcnow()
+
+    # Update the timestamp
+    application.updated_at = datetime.utcnow()
+
+    try:
+        db.session.commit()
+        flash(f'Application {application.application_id} has been reassigned to {new_user.username}.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error reassigning application: {str(e)}', 'danger')
+
+    # Redirect back to the application manager with the same search parameters
+    return redirect(url_for('application_manager',
+                           search_type=request.args.get('search_type'),
+                           user_id=request.args.get('user_id'),
+                           application_id=request.args.get('application_id')))
 
 @app.route('/add-product', methods=['GET', 'POST'])
 @login_required
