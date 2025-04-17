@@ -254,6 +254,32 @@ h3 {
   z-index: 10;
 }
 
+/* Sortable table headers */
+.table th a {
+  color: var(--text-dark);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.table th a:hover {
+  color: var(--primary);
+}
+
+.table th a i {
+  margin-left: 0.25rem;
+  font-size: 0.8rem;
+}
+
+.table th a i.opacity-25 {
+  opacity: 0.25;
+}
+
+.table th a:hover i.opacity-25 {
+  opacity: 0.75;
+}
+
 .table td {
   vertical-align: middle;
   border-top: 1px solid rgba(0, 0, 0, 0.05);

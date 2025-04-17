@@ -210,6 +210,8 @@
                                 <span>
                                 {% if request.args.get('sort_by') == 'date' %}
                                     <i class="bi bi-arrow-{{ 'up' if request.args.get('sort_order') == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                    <i class="bi bi-arrow-down-up text-muted opacity-25"></i>
                                 {% endif %}
                                 </span>
                             </a>
@@ -220,17 +222,32 @@
                                 <span>
                                 {% if request.args.get('sort_by') == 'customer_name' %}
                                     <i class="bi bi-arrow-{{ 'up' if request.args.get('sort_order') == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                    <i class="bi bi-arrow-down-up text-muted opacity-25"></i>
                                 {% endif %}
                                 </span>
                             </a>
                         </th>
-                        <th>Application ID</th>
+                        <th>
+                            <a href="{{ url_for('index', page=1, sort_by='application_id', sort_order='desc' if request.args.get('sort_by') == 'application_id' and request.args.get('sort_order') == 'asc' else 'asc', status=status_filter, search=search_term) }}">
+                                <span>Application ID</span>
+                                <span>
+                                {% if request.args.get('sort_by') == 'application_id' %}
+                                    <i class="bi bi-arrow-{{ 'up' if request.args.get('sort_order') == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                    <i class="bi bi-arrow-down-up text-muted opacity-25"></i>
+                                {% endif %}
+                                </span>
+                            </a>
+                        </th>
                         <th>
                             <a href="{{ url_for('index', page=1, sort_by='loan_amount', sort_order='desc' if request.args.get('sort_by') == 'loan_amount' and request.args.get('sort_order') == 'asc' else 'asc', status=status_filter, search=search_term) }}">
                                 <span>Loan Amount</span>
                                 <span>
                                 {% if request.args.get('sort_by') == 'loan_amount' %}
                                     <i class="bi bi-arrow-{{ 'up' if request.args.get('sort_order') == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                    <i class="bi bi-arrow-down-up text-muted opacity-25"></i>
                                 {% endif %}
                                 </span>
                             </a>
@@ -241,6 +258,8 @@
                                 <span>
                                 {% if request.args.get('sort_by') == 'product_type' %}
                                     <i class="bi bi-arrow-{{ 'up' if request.args.get('sort_order') == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                    <i class="bi bi-arrow-down-up text-muted opacity-25"></i>
                                 {% endif %}
                                 </span>
                             </a>
@@ -251,6 +270,8 @@
                                 <span>
                                 {% if request.args.get('sort_by') == 'status' %}
                                     <i class="bi bi-arrow-{{ 'up' if request.args.get('sort_order') == 'asc' else 'down' }}"></i>
+                                {% else %}
+                                    <i class="bi bi-arrow-down-up text-muted opacity-25"></i>
                                 {% endif %}
                                 </span>
                             </a>
