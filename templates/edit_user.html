@@ -1,0 +1,131 @@
+<!-- templates/edit_user.html -->
+{% extends "layout.html" %}
+
+{% block title %}{{ title }} - Loan Management System{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header bg-primary text-white">
+        <h2 class="mb-0">{{ title }}: {{ user.username }}</h2>
+    </div>
+    <div class="card-body">
+        <form method="POST" novalidate>
+            {{ form.csrf_token }}
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="username">{{ form.username.label.text }} <span class="text-danger">*</span></label>
+                        {{ form.username(class="form-control") }}
+                        {% if form.username.errors %}
+                            {% for error in form.username.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="email">{{ form.email.label.text }} <span class="text-danger">*</span></label>
+                        {{ form.email(class="form-control") }}
+                        {% if form.email.errors %}
+                            {% for error in form.email.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="password">{{ form.password.label.text }}</label>
+                        {{ form.password(class="form-control") }}
+                        <small class="text-muted">Leave blank to keep current password</small>
+                        {% if form.password.errors %}
+                            {% for error in form.password.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="confirm_password">{{ form.confirm_password.label.text }}</label>
+                        {{ form.confirm_password(class="form-control") }}
+                        {% if form.confirm_password.errors %}
+                            {% for error in form.confirm_password.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="role">{{ form.role.label.text }} <span class="text-danger">*</span></label>
+                        {{ form.role(class="form-control") }}
+                        {% if form.role.errors %}
+                            {% for error in form.role.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+                {% if enable_product_expertise %}
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="product_expertise">{{ form.product_expertise.label.text }}</label>
+                        {{ form.product_expertise(class="form-control") }}
+                        {% if form.product_expertise.errors %}
+                            {% for error in form.product_expertise.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                <div class="col-md-4">
+                    <div class="form-group mt-4">
+                        <div class="form-check">
+                            {{ form.available(class="form-check-input") }}
+                            <label class="form-check-label" for="available">{{ form.available.label.text }}</label>
+                        </div>
+                        {% if form.available.errors %}
+                            {% for error in form.available.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <div class="form-check">
+                            {{ form.active(class="form-check-input") }}
+                            <label class="form-check-label" for="active">{{ form.active.label.text }}</label>
+                        </div>
+                        {% if form.active.errors %}
+                            {% for error in form.active.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('users') }}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Users
+                </a>
+                {{ form.submit(class="btn btn-primary") }}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

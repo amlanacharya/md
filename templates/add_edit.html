@@ -375,8 +375,11 @@
             </div>
             {% endif %}
 
+
+
             <div class="form-group mt-4">
-                <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
+                {{ form.submit(class="btn btn-primary") }}
+                {{ form.save_as_draft(class="btn btn-info ms-2") }}
                 <a href="{{ url_for('index') }}" class="btn btn-secondary ms-2">Cancel</a>
             </div>
         </form>

@@ -4,6 +4,61 @@
 {% block title %}My Profile - Loan Management System{% endblock %}
 
 {% block content %}
+<style>
+    /* Theme preview styles */
+    .theme-preview {
+        width: 80px;
+        height: 50px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 2px solid transparent;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .theme-preview:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .theme-preview.active {
+        border-color: #4361ee;
+        box-shadow: 0 0 0 2px rgba(67, 97, 238, 0.3);
+    }
+
+    /* Default theme preview */
+    .default-preview {
+        background-color: #ffffff;
+        background-image: linear-gradient(to bottom, #4361ee 40%, #f8f9fa 40%);
+    }
+
+    /* Futuristic theme preview */
+    .futuristic-preview {
+        background-color: #0a1929;
+        background-image:
+            radial-gradient(circle at 20% 30%, rgba(102, 16, 242, 0.4) 0%, transparent 30%),
+            radial-gradient(circle at 80% 70%, rgba(0, 229, 255, 0.4) 0%, transparent 30%);
+    }
+
+    /* Dark theme preview */
+    .dark-preview {
+        background-color: #121212;
+        background-image: linear-gradient(to bottom, #1e1e1e 40%, #121212 40%);
+    }
+
+    /* Warm theme preview */
+    .warm-preview {
+        background-color: #fefae0;
+        background-image: linear-gradient(to bottom, #a05344 40%, #faedcd 40%);
+    }
+
+    /* Corporate theme preview */
+    .corporate-preview {
+        background-color: #ffffff;
+        background-image: linear-gradient(to bottom, #003366 40%, #f5f5f5 40%);
+    }
+</style>
 <div class="row">
     <div class="col-md-8 offset-md-2">
         <div class="card">
@@ -136,6 +191,44 @@
                     </div>
                 </div>
 
+                <div class="mb-4">
+                    <h4>Personalization</h4>
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title mb-3">Theme Selection</h5>
+                            <p class="text-muted mb-3">Choose a theme that suits your preference. The theme will be saved and applied across all pages.</p>
+
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="mb-3">
+                                        <label for="profile-theme-selector" class="form-label">Select Theme</label>
+                                        <select id="profile-theme-selector" class="form-select">
+                                            <option value="default">Default - Professional Blue</option>
+                                            <option value="futuristic">Futuristic - Ultra Modern & Sleek</option>
+                                            <option value="dark">Dark Mode - Easy on the eyes</option>
+                                            <option value="warm">Warm - Earthy & Comfortable</option>
+                                            <option value="corporate">Corporate - Traditional & Professional</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 d-flex align-items-end">
+                                    <button id="apply-theme-btn" class="btn btn-primary w-100">Apply Theme</button>
+                                </div>
+                            </div>
+
+                            <div class="mt-3">
+                                <div class="d-flex flex-wrap gap-2">
+                                    <div class="theme-preview default-preview" data-theme="default" title="Default"></div>
+                                    <div class="theme-preview futuristic-preview" data-theme="futuristic" title="Futuristic"></div>
+                                    <div class="theme-preview dark-preview" data-theme="dark" title="Dark Mode"></div>
+                                    <div class="theme-preview warm-preview" data-theme="warm" title="Warm"></div>
+                                    <div class="theme-preview corporate-preview" data-theme="corporate" title="Corporate"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="d-flex justify-content-center mt-4">
                     <a href="#" class="btn btn-primary me-2">Change Password</a>
                     <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Dashboard</a>
@@ -144,4 +237,120 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get saved theme from localStorage
+        const savedTheme = localStorage.getItem('theme') || 'default';
+
+        // Set the selected option in theme selectors
+        const profileThemeSelector = document.getElementById('profile-theme-selector');
+        const themeSelector = document.getElementById('theme-selector');
+
+        if (profileThemeSelector) {
+            profileThemeSelector.value = savedTheme;
+        }
+
+        // Mark the active theme preview
+        const themePreview = document.querySelector(`.theme-preview.${savedTheme}-preview`);
+        if (themePreview) {
+            themePreview.classList.add('active');
+        }
+
+        // Add click event to theme previews
+        const themePreviews = document.querySelectorAll('.theme-preview');
+        themePreviews.forEach(preview => {
+            preview.addEventListener('click', function() {
+                // Remove active class from all previews
+                themePreviews.forEach(p => p.classList.remove('active'));
+
+                // Add active class to clicked preview
+                this.classList.add('active');
+
+                // Update the select dropdown
+                const theme = this.dataset.theme;
+                if (profileThemeSelector) {
+                    profileThemeSelector.value = theme;
+                }
+            });
+        });
+
+        // Apply theme button
+        const applyThemeBtn = document.getElementById('apply-theme-btn');
+        if (applyThemeBtn) {
+            applyThemeBtn.addEventListener('click', function() {
+                const selectedTheme = profileThemeSelector.value;
+
+                // Update both selectors
+                if (themeSelector) {
+                    themeSelector.value = selectedTheme;
+
+                    // Trigger change event on the main theme selector
+                    const event = new Event('change');
+                    themeSelector.dispatchEvent(event);
+                } else {
+                    // If main selector not available, set theme directly
+                    setTheme(selectedTheme);
+                    localStorage.setItem('theme', selectedTheme);
+
+                    // Show notification
+                    showThemeChangeNotification(selectedTheme);
+                }
+            });
+        }
+
+        // Function to set theme (backup if theme-switcher.js is not loaded)
+        function setTheme(theme) {
+            // Remove all theme classes
+            document.body.classList.remove(
+                'default-theme',
+                'futuristic-theme',
+                'dark-theme',
+                'warm-theme',
+                'corporate-theme'
+            );
+
+            // Add selected theme class
+            document.body.classList.add(`${theme}-theme`);
+
+            // Update theme stylesheet
+            const themeLink = document.getElementById('theme-stylesheet');
+            if (themeLink) {
+                themeLink.href = `/static/css/themes/theme-${theme}.css`;
+            }
+        }
+
+        // Function to show theme change notification
+        function showThemeChangeNotification(theme) {
+            // Get theme name
+            const themeName = document.querySelector(`#profile-theme-selector option[value="${theme}"]`).textContent;
+
+            // Create toast notification
+            const notification = document.createElement('div');
+            notification.className = 'toast align-items-center text-white border-0';
+            notification.setAttribute('role', 'alert');
+            notification.setAttribute('aria-live', 'assertive');
+            notification.setAttribute('aria-atomic', 'true');
+
+            notification.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="bi bi-palette me-2"></i>Theme changed to ${themeName}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            `;
+
+            // Add to toast container
+            const toastContainer = document.getElementById('toast-container');
+            if (toastContainer) {
+                toastContainer.appendChild(notification);
+                const toast = new bootstrap.Toast(notification);
+                toast.show();
+            }
+        }
+    });
+</script>
 {% endblock %}

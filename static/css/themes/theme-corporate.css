@@ -1,0 +1,112 @@
+/* 
+ * Corporate Theme - Professional and traditional
+ */
+
+:root {
+  --theme-name: "Corporate";
+  
+  /* Primary colors */
+  --primary: #003366;
+  --primary-light: #004d99;
+  --primary-dark: #002244;
+  --secondary: #6c757d;
+  --accent: #007bff;
+  
+  /* Background colors */
+  --bg-main: #ffffff;
+  --bg-light: #f5f5f5;
+  --bg-dark: #333333;
+  
+  /* Text colors */
+  --text-dark: #333333;
+  --text-light: #ffffff;
+  --text-muted: #6c757d;
+  
+  /* Status colors */
+  --status-draft: #6c757d;
+  --status-pending-checker: #ffc107;
+  --status-pending-author: #28a745;
+  --status-approved: #007bff;
+  --status-rejected: #dc3545;
+  
+  /* UI elements - more square for corporate feel */
+  --border-radius: 0.25rem;
+  --border-radius-lg: 0.375rem;
+  --border-radius-sm: 0.125rem;
+  
+  /* Shadows - more subtle */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Corporate theme specific overrides */
+.corporate-theme {
+  background-color: var(--bg-main);
+  color: var(--text-dark);
+}
+
+.corporate-theme .card {
+  border: 1px solid rgba(0, 0, 0, 0.125);
+  box-shadow: var(--shadow-sm);
+}
+
+.corporate-theme .card-header {
+  background-color: var(--bg-light);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+  font-weight: 600;
+}
+
+.corporate-theme .navbar {
+  background-color: var(--primary) !important;
+  box-shadow: var(--shadow-md);
+}
+
+.corporate-theme .navbar-brand,
+.corporate-theme .nav-link {
+  color: var(--text-light) !important;
+}
+
+.corporate-theme .nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.corporate-theme .dropdown-menu {
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-md);
+}
+
+.corporate-theme .btn {
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.875rem;
+}
+
+.corporate-theme .btn-primary {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}
+
+.corporate-theme .btn-primary:hover {
+  background-color: var(--primary-dark);
+  border-color: var(--primary-dark);
+}
+
+.corporate-theme .table th {
+  background-color: var(--bg-light);
+  font-weight: 600;
+}
+
+.corporate-theme .table-striped tbody tr:nth-of-type(odd) {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.corporate-theme .pagination .page-link {
+  color: var(--primary);
+}
+
+.corporate-theme .pagination .page-item.active .page-link {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}

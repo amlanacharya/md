@@ -13,15 +13,18 @@
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
-    <!-- Custom CSS -->
+    <!-- Base CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+    <!-- Theme Base CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/themes/theme-base.css') }}">
+    <!-- Theme CSS (will be dynamically changed by theme switcher) -->
+    <link id="theme-stylesheet" rel="stylesheet" href="{{ url_for('static', filename='css/themes/theme-default.css') }}">
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
     <!-- Inline styles for backward compatibility -->
     <style>
         .table-responsive {
             overflow-x: auto;
-        }
-        .clickable-row {
-            cursor: pointer;
         }
     </style>
 </head>
@@ -35,44 +38,106 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     {% if current_user.is_authenticated %}
+                    <!-- Home -->
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('index') }}">Home</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('add_loan') }}">Add New Loan</a>
-                    </li>
-                    {% if current_user.is_maker() %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('assigned_cases_maker') }}">
-                            <i class="bi bi-list-check"></i> My Applications
+                        <a class="nav-link" href="{{ url_for('index') }}">
+                            <i class="bi bi-house-door"></i> Dashboard
                         </a>
+                    </li>
+
+                    <!-- Applications Menu -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="applicationsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-file-earmark-text"></i> Applications
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="applicationsDropdown">
+                            <li><a class="dropdown-item" href="{{ url_for('add_loan') }}">
+                                <i class="bi bi-plus-circle"></i> Add New Loan
+                            </a></li>
+                            {% if current_user.is_maker() %}
+                            <li><a class="dropdown-item" href="{{ url_for('assigned_cases_maker') }}">
+                                <i class="bi bi-list-check"></i> My Applications
+                            </a></li>
+                            {% endif %}
+                            {% if current_user.is_checker() %}
+                            <li><a class="dropdown-item" href="{{ url_for('assigned_cases_checker') }}">
+                                <i class="bi bi-list-check"></i> My Assigned Cases
+                            </a></li>
+                            {% endif %}
+                            {% if current_user.is_author() %}
+                            <li><a class="dropdown-item" href="{{ url_for('assigned_cases_author') }}">
+                                <i class="bi bi-list-check"></i> My Assigned Cases
+                            </a></li>
+                            {% endif %}
+                        </ul>
+                    </li>
+
+                    <!-- Distribution Menu (for Checker and Author) -->
+                    {% if current_user.is_checker() or current_user.is_author() %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="distributionDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-distribute-vertical"></i> Distribution
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="distributionDropdown">
+                            {% if current_user.is_checker() %}
+                            <li><a class="dropdown-item" href="{{ url_for('distribute_applications') }}">
+                                <i class="bi bi-arrow-down-up"></i> Distribute to Checkers
+                            </a></li>
+                            {% endif %}
+                            {% if current_user.is_author() %}
+                            <li><a class="dropdown-item" href="{{ url_for('distribute_author_applications') }}">
+                                <i class="bi bi-arrow-down-up"></i> Distribute to Authors
+                            </a></li>
+                            {% endif %}
+                        </ul>
                     </li>
                     {% endif %}
-                    {% if current_user.is_checker() %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('distribute_applications') }}">
-                            <i class="bi bi-distribute-vertical"></i> Distribute Applications
+
+                    <!-- Reports Menu -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="reportsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-file-earmark-spreadsheet"></i> Reports
                         </a>
+                        <ul class="dropdown-menu" aria-labelledby="reportsDropdown">
+                            <li><a class="dropdown-item" href="{{ url_for('export_queue') }}">
+                                <i class="bi bi-file-earmark-excel"></i> Export Queue
+                            </a></li>
+                            {% if current_user.is_checker() %}
+                            <li><a class="dropdown-item" href="{{ url_for('export_cases_checker') }}">
+                                <i class="bi bi-file-earmark-excel"></i> Export My Cases
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('export_distribution_checker') }}">
+                                <i class="bi bi-file-earmark-excel"></i> Checker Distribution Report
+                            </a></li>
+                            {% endif %}
+                            {% if current_user.is_author() %}
+                            <li><a class="dropdown-item" href="{{ url_for('export_cases_author') }}">
+                                <i class="bi bi-file-earmark-excel"></i> Export My Cases
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('export_distribution_author') }}">
+                                <i class="bi bi-file-earmark-excel"></i> Author Distribution Report
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('export_productivity_report') }}">
+                                <i class="bi bi-file-earmark-excel"></i> Productivity Report
+                            </a></li>
+                            {% endif %}
+                        </ul>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('assigned_cases_checker') }}">
-                            <i class="bi bi-list-check"></i> My Assigned Cases
-                        </a>
-                    </li>
-                    {% endif %}
+
+                    <!-- Admin Menu (for Author only) -->
                     {% if current_user.is_author() %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('distribute_author_applications') }}">
-                            <i class="bi bi-distribute-vertical"></i> Distribute to Authors
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-gear"></i> Administration
                         </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('assigned_cases_author') }}">
-                            <i class="bi bi-list-check"></i> My Assigned Cases
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('users') }}">User Management</a>
+                        <ul class="dropdown-menu" aria-labelledby="adminDropdown">
+                            <li><a class="dropdown-item" href="{{ url_for('users') }}">
+                                <i class="bi bi-people"></i> User Management
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('products') }}">
+                                <i class="bi bi-box"></i> Product Management
+                            </a></li>
+                        </ul>
                     </li>
                     {% endif %}
                     {% endif %}
@@ -87,9 +152,24 @@
                             </span>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                            <li><a class="dropdown-item" href="{{ url_for('profile') }}">My Profile</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('profile') }}"><i class="bi bi-person"></i> My Profile</a></li>
+                            <li>
+                                <div class="dropdown-item">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-palette me-2"></i>
+                                        <label for="theme-selector" class="form-label mb-0 me-2">Theme:</label>
+                                        <select id="theme-selector" class="form-select form-select-sm">
+                                            <option value="default">Default</option>
+                                            <option value="futuristic">Futuristic</option>
+                                            <option value="dark">Dark</option>
+                                            <option value="warm">Warm</option>
+                                            <option value="corporate">Corporate</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('logout') }}">Logout</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
                         </ul>
                     </li>
                     {% else %}
@@ -106,7 +186,16 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    <div class="alert alert-{{ category }} alert-dismissible fade show scale-in" role="alert">
+                        {% if category == 'success' %}
+                            <i class="bi bi-check-circle-fill me-2"></i>
+                        {% elif category == 'danger' %}
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        {% elif category == 'warning' %}
+                            <i class="bi bi-exclamation-circle-fill me-2"></i>
+                        {% elif category == 'info' %}
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                        {% endif %}
                         {{ message }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
@@ -119,6 +208,28 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/realtime-updates.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/theme-switcher.js') }}"></script>
+
+    <!-- Common JavaScript for UI enhancements -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add fade-in animation to main content
+            const mainContent = document.querySelector('.container.mt-3.mb-5');
+            if (mainContent) {
+                mainContent.classList.add('fade-in');
+            }
+
+            // Add active class to current nav item
+            const currentPath = window.location.pathname;
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => {
+                if (link.getAttribute('href') === currentPath) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+
     {% block scripts %}{% endblock %}
 
     <!-- Toast container for notifications -->

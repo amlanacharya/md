@@ -1,9 +1,12 @@
-from app import app, db, User, LoanApplication, PRODUCT_PL, PRODUCT_TW, PRODUCT_UTW, PRODUCT_UC, ROLE_MAKER, ROLE_CHECKER, ROLE_AUTHOR
+from app import app, db, User, LoanApplication, Product, PRODUCT_PL, PRODUCT_TW, PRODUCT_UTW, PRODUCT_UC, ROLE_MAKER, ROLE_CHECKER, ROLE_AUTHOR
 from datetime import datetime, timedelta
 import random
+from seed_products import seed_products
 
 def seed_database():
     with app.app_context():
+        # First, seed the products
+        seed_products()
         print("Starting database seeding...")
 
         # Clear existing data (optional - comment out if you want to keep existing data)

@@ -1,0 +1,122 @@
+/* 
+ * Warm Theme - Earthy and comfortable
+ */
+
+:root {
+  --theme-name: "Warm";
+  
+  /* Primary colors */
+  --primary: #a05344;
+  --primary-light: #c27c6d;
+  --primary-dark: #7e3a2e;
+  --secondary: #6b705c;
+  --accent: #dda15e;
+  
+  /* Background colors */
+  --bg-main: #fefae0;
+  --bg-light: #faedcd;
+  --bg-dark: #d4a373;
+  
+  /* Text colors */
+  --text-dark: #3a3a3a;
+  --text-light: #fefae0;
+  --text-muted: #6b705c;
+  
+  /* Status colors */
+  --status-draft: #6b705c;
+  --status-pending-checker: #dda15e;
+  --status-pending-author: #606c38;
+  --status-approved: #283618;
+  --status-rejected: #bc6c25;
+  
+  /* UI elements */
+  --border-radius: 0.5rem;
+  --border-radius-lg: 0.75rem;
+  --border-radius-sm: 0.25rem;
+  
+  /* Shadows */
+  --shadow-sm: 0 2px 5px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Warm theme specific overrides */
+.warm-theme {
+  background-color: var(--bg-main);
+  color: var(--text-dark);
+}
+
+.warm-theme .card {
+  background-color: var(--bg-light);
+  border: none;
+}
+
+.warm-theme .card-header {
+  background-color: rgba(212, 163, 115, 0.2);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.warm-theme .navbar {
+  background-color: var(--primary) !important;
+}
+
+.warm-theme .navbar-brand,
+.warm-theme .nav-link {
+  color: var(--text-light) !important;
+}
+
+.warm-theme .dropdown-menu {
+  background-color: var(--bg-light);
+  border: none;
+}
+
+.warm-theme .dropdown-item {
+  color: var(--text-dark);
+}
+
+.warm-theme .dropdown-item:hover {
+  background-color: rgba(212, 163, 115, 0.2);
+}
+
+.warm-theme .btn-primary {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}
+
+.warm-theme .btn-primary:hover {
+  background-color: var(--primary-dark);
+  border-color: var(--primary-dark);
+}
+
+.warm-theme .btn-outline-primary {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.warm-theme .btn-outline-primary:hover {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  color: var(--text-light);
+}
+
+.warm-theme .table th {
+  background-color: rgba(212, 163, 115, 0.2);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.warm-theme .table-striped tbody tr:nth-of-type(odd) {
+  background-color: rgba(212, 163, 115, 0.1);
+}
+
+.warm-theme .table-hover tbody tr:hover {
+  background-color: rgba(212, 163, 115, 0.2);
+}
+
+.warm-theme .pagination .page-link {
+  color: var(--primary);
+}
+
+.warm-theme .pagination .page-item.active .page-link {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}

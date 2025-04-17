@@ -58,11 +58,27 @@ def role_required(role):
         return decorated_function
     return decorator
 
-# Product type constants
+# Product type constants - kept for backward compatibility
 PRODUCT_PL = 'PL'  # Personal Loan
 PRODUCT_TW = 'TW'  # Two Wheeler
 PRODUCT_UTW = 'UTW'  # Used Two Wheeler
 PRODUCT_UC = 'UC'  # Used Car
+
+# Product model for dynamic product management
+class Product(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(10), unique=True, nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __init__(self, code, name, active=True):
+        self.code = code
+        self.name = name
+        self.active = active
+
+    def __repr__(self):
+        return f'<Product {self.code}: {self.name}>'
 
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
@@ -163,12 +179,7 @@ class LoanApplicationForm(FlaskForm):
     dealer_code = StringField('Dealer Code', validators=[DataRequired()])
     scheme_name = StringField('Scheme Name', validators=[DataRequired()])
     branch_location = StringField('Branch Location', validators=[DataRequired()])
-    product_type = SelectField('Product Type', validators=[DataRequired()], choices=[
-        (PRODUCT_PL, 'Personal Loan (PL)'),
-        (PRODUCT_TW, 'Two Wheeler (TW)'),
-        (PRODUCT_UTW, 'Used Two Wheeler (UTW)'),
-        (PRODUCT_UC, 'Used Car (UC)')
-    ])
+    product_type = SelectField('Product Type', validators=[DataRequired()])
     loan_amount = FloatField('Loan Amount', validators=[DataRequired()])
     payment_amount = FloatField('Payment Amount', validators=[DataRequired()])
     processing_fee = FloatField('Processing Fee', validators=[DataRequired()])
@@ -186,10 +197,14 @@ class LoanApplicationForm(FlaskForm):
     approve = BooleanField('Approve Application')
     reject = BooleanField('Reject Application')
     rejection_reason = TextAreaField('Rejection Reason', validators=[Optional()])
+    save_as_draft = SubmitField('Save as Draft')
     submit = SubmitField('Submit')
 
     def __init__(self, *args, **kwargs):
         super(LoanApplicationForm, self).__init__(*args, **kwargs)
+
+        # Dynamically populate product type choices
+        self.product_type.choices = [(p.code, f'{p.name} ({p.code})') for p in Product.query.filter_by(active=True).all()]
 
         # Adjust field access based on user role
         if current_user.is_authenticated:
@@ -245,6 +260,40 @@ class RegistrationForm(FlaskForm):
             self.product_expertise.render_kw = {'style': 'display: none;'}
             # Also hide the label by adding a class
             self.product_expertise.label.text = ''
+
+# Form for editing users
+class EditUserForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired(), Length(min=2, max=20)])
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    password = PasswordField('New Password', validators=[Optional()])
+    confirm_password = PasswordField('Confirm New Password', validators=[EqualTo('password')])
+    role = SelectField('Role', choices=[
+        (ROLE_MAKER, 'Maker'),
+        (ROLE_CHECKER, 'Checker'),
+        (ROLE_AUTHOR, 'Author')
+    ])
+    product_expertise = SelectField('Product Expertise', validators=[Optional()])
+    available = BooleanField('Available for Assignment', default=True)
+    active = BooleanField('Active', default=True)
+    submit = SubmitField('Update User')
+
+    def __init__(self, *args, **kwargs):
+        super(EditUserForm, self).__init__(*args, **kwargs)
+        # Hide product expertise field if the feature is disabled
+        if not app.config['ENABLE_PRODUCT_EXPERTISE']:
+            self.product_expertise.render_kw = {'style': 'display: none;'}
+            # Also hide the label by adding a class
+            self.product_expertise.label.text = ''
+
+        # Dynamically populate product expertise choices
+        self.product_expertise.choices = [('', 'None')] + [(p.code, f'{p.name} ({p.code})') for p in Product.query.filter_by(active=True).all()]
+
+# Form for adding/editing products
+class ProductForm(FlaskForm):
+    code = StringField('Product Code', validators=[DataRequired(), Length(min=1, max=10)])
+    name = StringField('Product Name', validators=[DataRequired(), Length(min=2, max=100)])
+    active = BooleanField('Active', default=True)
+    submit = SubmitField('Save Product')
 
 # Routes
 @app.route('/')
@@ -339,8 +388,11 @@ def add_loan():
                 flash('As a Checker, you cannot set the Author field.', 'danger')
                 return render_template('add_edit.html', form=form, title='Add Loan Application')
 
+        # Check if save as draft was requested
+        if form.save_as_draft.data:
+            status = LoanApplication.STATUS_DRAFT
         # Set initial status based on role
-        if current_user.is_maker():
+        elif current_user.is_maker():
             status = LoanApplication.STATUS_PENDING_CHECKER
         elif current_user.is_checker():
             status = LoanApplication.STATUS_PENDING_AUTHOR
@@ -377,7 +429,10 @@ def add_loan():
         try:
             db.session.add(loan_application)
             db.session.commit()
-            flash('Loan application added successfully!', 'success')
+            if form.save_as_draft.data:
+                flash('Loan application saved as draft successfully!', 'info')
+            else:
+                flash('Loan application added successfully!', 'success')
             return redirect(url_for('index'))
         except Exception as e:
             db.session.rollback()
@@ -443,8 +498,13 @@ def edit_loan(id):
             loan_application.author = form.author.data or current_user.username
             loan_application.author_id = current_user.id
 
+            # Check if save as draft was requested
+            if form.save_as_draft.data:
+                loan_application.status = LoanApplication.STATUS_DRAFT
+                loan_application.status_changed_at = datetime.utcnow()
+                # Other fields will be updated but status remains draft
             # Handle approval or rejection
-            if form.approve.data and form.reject.data:
+            elif form.approve.data and form.reject.data:
                 flash('Cannot both approve and reject an application.', 'danger')
                 return render_template('add_edit.html', form=form, title='Edit Loan Application', loan_application=loan_application)
             elif form.approve.data:
@@ -468,8 +528,13 @@ def edit_loan(id):
             if form.checker.data == current_user.username or not loan_application.checker:
                 loan_application.checker_id = current_user.id
 
+                # Check if save as draft was requested
+                if form.save_as_draft.data:
+                    loan_application.status = LoanApplication.STATUS_DRAFT
+                    loan_application.status_changed_at = datetime.utcnow()
+                    # Other fields will be updated but status remains draft
                 # Handle approval or rejection
-                if form.approve.data and form.reject.data:
+                elif form.approve.data and form.reject.data:
                     flash('Cannot both approve and reject an application.', 'danger')
                     return render_template('add_edit.html', form=form, title='Edit Loan Application', loan_application=loan_application)
                 elif form.approve.data:
@@ -491,12 +556,19 @@ def edit_loan(id):
             loan_application.maker = form.maker.data
             if form.maker.data == current_user.username:
                 loan_application.maker_id = current_user.id
-                loan_application.status = LoanApplication.STATUS_PENDING_CHECKER
+                # Check if save as draft was requested
+                if form.save_as_draft.data:
+                    loan_application.status = LoanApplication.STATUS_DRAFT
+                else:
+                    loan_application.status = LoanApplication.STATUS_PENDING_CHECKER
                 loan_application.status_changed_at = datetime.utcnow()
 
         try:
             db.session.commit()
-            flash('Loan application updated successfully!', 'success')
+            if form.save_as_draft.data:
+                flash('Loan application saved as draft successfully!', 'info')
+            else:
+                flash('Loan application updated successfully!', 'success')
             return redirect(url_for('index'))
         except Exception as e:
             db.session.rollback()
@@ -581,6 +653,64 @@ def users():
     users = User.query.all()
     from flask import current_app
     return render_template('users.html', title='Users', users=users, enable_product_expertise=current_app.config['ENABLE_PRODUCT_EXPERTISE'])
+
+@app.route('/edit-user/<int:id>', methods=['GET', 'POST'])
+@login_required
+@role_required('author')  # Only authors can edit users
+def edit_user(id):
+    user = User.query.get_or_404(id)
+    form = EditUserForm(obj=user)
+
+    if form.validate_on_submit():
+        user.username = form.username.data
+        user.email = form.email.data
+        user.role = form.role.data
+        user.available = form.available.data
+        user.active = form.active.data
+
+        # Only update password if provided
+        if form.password.data:
+            user.set_password(form.password.data)
+
+        # Only set product expertise if the feature is enabled
+        if app.config['ENABLE_PRODUCT_EXPERTISE']:
+            # Only set product expertise for checker and author roles
+            if form.role.data in [ROLE_CHECKER, ROLE_AUTHOR] and form.product_expertise.data:
+                user.product_expertise = form.product_expertise.data
+            else:
+                user.product_expertise = None
+
+        try:
+            db.session.commit()
+            flash(f'User {user.username} has been updated successfully!', 'success')
+            return redirect(url_for('users'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating user: {str(e)}', 'danger')
+
+    from flask import current_app
+    return render_template('edit_user.html', title='Edit User', form=form, user=user, enable_product_expertise=current_app.config['ENABLE_PRODUCT_EXPERTISE'])
+
+@app.route('/delete-user/<int:id>', methods=['POST'])
+@login_required
+@role_required('author')  # Only authors can delete users
+def delete_user(id):
+    user = User.query.get_or_404(id)
+
+    # Prevent deleting yourself
+    if user.id == current_user.id:
+        flash('You cannot delete your own account!', 'danger')
+        return redirect(url_for('users'))
+
+    try:
+        db.session.delete(user)
+        db.session.commit()
+        flash(f'User {user.username} has been deleted successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting user: {str(e)}', 'danger')
+
+    return redirect(url_for('users'))
 
 # Add a route for the user profile
 @app.route('/profile')
@@ -1091,6 +1221,95 @@ def export_cases_maker():
         download_name=filename,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
+
+# Routes for product management
+@app.route('/products')
+@login_required
+@role_required('author')  # Only authors can manage products
+def products():
+    products = Product.query.all()
+    return render_template('products.html', title='Product Management', products=products)
+
+@app.route('/add-product', methods=['GET', 'POST'])
+@login_required
+@role_required('author')  # Only authors can add products
+def add_product():
+    form = ProductForm()
+
+    if form.validate_on_submit():
+        # Check if product code already exists
+        existing_product = Product.query.filter_by(code=form.code.data).first()
+        if existing_product:
+            flash(f'Product code {form.code.data} already exists!', 'danger')
+            return render_template('add_edit_product.html', title='Add Product', form=form)
+
+        product = Product(
+            code=form.code.data,
+            name=form.name.data,
+            active=form.active.data
+        )
+
+        try:
+            db.session.add(product)
+            db.session.commit()
+            flash(f'Product {product.name} ({product.code}) added successfully!', 'success')
+            return redirect(url_for('products'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error adding product: {str(e)}', 'danger')
+
+    return render_template('add_edit_product.html', title='Add Product', form=form)
+
+@app.route('/edit-product/<string:code>', methods=['GET', 'POST'])
+@login_required
+@role_required('author')  # Only authors can edit products
+def edit_product(code):
+    product = Product.query.filter_by(code=code).first_or_404()
+    form = ProductForm(obj=product)
+
+    if form.validate_on_submit():
+        # If code is changed, check if the new code already exists
+        if form.code.data != product.code:
+            existing_product = Product.query.filter_by(code=form.code.data).first()
+            if existing_product:
+                flash(f'Product code {form.code.data} already exists!', 'danger')
+                return render_template('add_edit_product.html', title='Edit Product', form=form, product=product)
+
+        product.code = form.code.data
+        product.name = form.name.data
+        product.active = form.active.data
+
+        try:
+            db.session.commit()
+            flash(f'Product {product.name} ({product.code}) updated successfully!', 'success')
+            return redirect(url_for('products'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating product: {str(e)}', 'danger')
+
+    return render_template('add_edit_product.html', title='Edit Product', form=form, product=product)
+
+@app.route('/delete-product/<string:code>', methods=['POST'])
+@login_required
+@role_required('author')  # Only authors can delete products
+def delete_product(code):
+    product = Product.query.filter_by(code=code).first_or_404()
+
+    # Check if product is in use
+    in_use = LoanApplication.query.filter_by(product_type=product.code).first()
+    if in_use:
+        flash(f'Cannot delete product {product.name} ({product.code}) as it is in use by loan applications!', 'danger')
+        return redirect(url_for('products'))
+
+    try:
+        db.session.delete(product)
+        db.session.commit()
+        flash(f'Product {product.name} ({product.code}) deleted successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting product: {str(e)}', 'danger')
+
+    return redirect(url_for('products'))
 
 # Route for exporting productivity report
 @app.route('/export-productivity-report')

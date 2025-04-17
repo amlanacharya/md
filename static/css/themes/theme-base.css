@@ -1,0 +1,81 @@
+/*
+ * Base Theme Variables - These will be overridden by specific themes
+ */
+
+:root {
+  /* These variables will be overridden by specific themes */
+  --theme-name: "Default";
+
+  /* Primary colors */
+  --primary: #4361ee;
+  --primary-light: #738aed;
+  --primary-dark: #2b3eb1;
+  --secondary: #6c757d;
+  --accent: #4cc9c1;
+
+  /* Background colors */
+  --bg-main: #ffffff;
+  --bg-light: #f8f9fa;
+  --bg-dark: #212529;
+
+  /* Text colors */
+  --text-dark: #2b2d42;
+  --text-light: #f8f9fa;
+  --text-muted: #6c757d;
+
+  /* Status colors */
+  --status-draft: #6c757d;
+  --status-pending-checker: #f9c74f;
+  --status-pending-author: #90be6d;
+  --status-approved: #43aa8b;
+  --status-rejected: #f94144;
+
+  /* UI elements */
+  --border-radius: 0.5rem;
+  --border-radius-lg: 0.75rem;
+  --border-radius-sm: 0.25rem;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 5px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.1);
+
+  /* Transitions */
+  --transition-speed: 0.2s;
+  --transition-fn: ease;
+}
+
+/* Theme transition - smooth transition between themes */
+body {
+  transition: background-color 0.5s ease, color 0.5s ease;
+}
+
+.card, .navbar, .dropdown-menu, .btn, .alert, .badge, .toast {
+  transition: background-color 0.5s ease, color 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease;
+}
+
+/* Theme classes */
+body.default-theme {
+  background-color: var(--bg-main);
+  color: var(--text-dark);
+}
+
+body.futuristic-theme {
+  background-color: var(--bg-main);
+  color: var(--text-light);
+}
+
+body.dark-theme {
+  background-color: var(--bg-main);
+  color: var(--text-light);
+}
+
+body.warm-theme {
+  background-color: var(--bg-main);
+  color: var(--text-dark);
+}
+
+body.corporate-theme {
+  background-color: var(--bg-main);
+  color: var(--text-dark);
+}

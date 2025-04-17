@@ -80,7 +80,7 @@
                                             {% if user.available %}Set Unavailable{% else %}Set Available{% endif %}
                                         </button>
                                     </form>
-                                    <a href="#" class="btn btn-sm btn-warning">
+                                    <a href="{{ url_for('edit_user', id=user.id) }}" class="btn btn-sm btn-warning">
                                         <i class="bi bi-pencil"></i> Edit
                                     </a>
                                     <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteUserModal{{ user.id }}">
@@ -100,7 +100,7 @@
                                                 </div>
                                                 <div class="modal-footer">
                                                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                    <form action="#" method="POST" style="display: inline;">
+                                                    <form action="{{ url_for('delete_user', id=user.id) }}" method="POST" style="display: inline;">
                                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                         <button type="submit" class="btn btn-danger">Delete</button>
                                                     </form>

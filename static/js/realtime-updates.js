@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', function() {
         notification.innerHTML = `
             <div class="d-flex">
                 <div class="toast-body">
-                    ${message}
+                    <i class="bi bi-info-circle me-2"></i>${message}
                 </div>
                 <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
@@ -105,13 +105,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Check for updates every 30 seconds
     setInterval(checkForUpdates, 30000);
 
-    // Add CSS for highlight effect
-    const style = document.createElement('style');
-    style.textContent = `
-        .bg-light-yellow {
-            background-color: rgba(255, 243, 205, 0.5) !important;
-            transition: background-color 1s;
-        }
-    `;
-    document.head.appendChild(style);
+    // Initial check for updates when page loads
+    setTimeout(checkForUpdates, 1000);
 });
