@@ -54,6 +54,9 @@
                             <li><a class="dropdown-item" href="{{ url_for('add_loan') }}">
                                 <i class="bi bi-plus-circle"></i> Add New Loan
                             </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('bulk_upload') }}">
+                                <i class="bi bi-file-earmark-excel"></i> Bulk Upload
+                            </a></li>
                             {% if current_user.is_maker() %}
                             <li><a class="dropdown-item" href="{{ url_for('assigned_cases_maker') }}">
                                 <i class="bi bi-list-check"></i> My Applications

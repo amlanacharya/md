@@ -1,0 +1,87 @@
+<!-- templates/bulk_upload.html -->
+{% extends "layout.html" %}
+
+{% block title %}{{ title }} - OPTiMuS{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header bg-primary text-white">
+        <h2 class="mb-0">{{ title }}</h2>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info">
+            <h5><i class="bi bi-info-circle"></i> Instructions</h5>
+            <p>Upload an Excel file (.xlsx or .xls) with the following required columns:</p>
+            <ul>
+                <li><strong>application_id</strong> - Unique identifier for the application</li>
+                <li><strong>customer_name</strong> - Name of the customer</li>
+                <li><strong>date</strong> - Application date (YYYY-MM-DD format)</li>
+            </ul>
+            <p>Optional columns include:</p>
+            <ul>
+                <li>dealer_code, scheme_name, branch_location, product_type</li>
+                <li>loan_amount, payment_amount, processing_fee, rto, vap_amount</li>
+                <li>beneficiary_name, beneficiary_account_number, beneficiary_ifsc</li>
+                <li>bank_name, branch_name</li>
+            </ul>
+            <p>All applications will be saved in <strong>draft</strong> status.</p>
+        </div>
+
+        <form method="POST" enctype="multipart/form-data" novalidate>
+            {{ form.csrf_token }}
+
+            <div class="form-group mb-4">
+                <label for="excel_file" class="form-label">{{ form.excel_file.label.text }}</label>
+                {{ form.excel_file(class="form-control") }}
+                {% if form.excel_file.errors %}
+                    {% for error in form.excel_file.errors %}
+                        <div class="text-danger small">{{ error }}</div>
+                    {% endfor %}
+                {% endif %}
+                <div class="form-text">Accepted formats: .xlsx, .xls</div>
+            </div>
+
+            <div class="form-group mt-4">
+                {{ form.submit(class="btn btn-primary") }}
+                <a href="{{ url_for('index') }}" class="btn btn-secondary ms-2">Cancel</a>
+            </div>
+        </form>
+
+        <div class="mt-4">
+            <h5>Sample Excel Format</h5>
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm">
+                    <thead class="table-light">
+                        <tr>
+                            <th>application_id</th>
+                            <th>customer_name</th>
+                            <th>date</th>
+                            <th>product_type</th>
+                            <th>loan_amount</th>
+                            <th>...</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>APP001</td>
+                            <td>John Doe</td>
+                            <td>2023-01-15</td>
+                            <td>PL</td>
+                            <td>50000</td>
+                            <td>...</td>
+                        </tr>
+                        <tr>
+                            <td>APP002</td>
+                            <td>Jane Smith</td>
+                            <td>2023-01-16</td>
+                            <td>TW</td>
+                            <td>75000</td>
+                            <td>...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
