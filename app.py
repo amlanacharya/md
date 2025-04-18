@@ -16,6 +16,9 @@ import tempfile
 import os
 from excel_utils import export_applications_to_excel, export_distribution_to_excel, export_productivity_report_to_excel
 
+# Import configuration models and services
+from forms.config_form import WorkflowConfigForm, FieldConfigForm, SystemConfigForm
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'OADSECRET'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///optimus.db'
@@ -23,6 +26,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Application configuration
 app.config['ENABLE_PRODUCT_EXPERTISE'] = False  # Set to True to enable product expertise feature
+app.config['ENABLE_FIELD_CONFIGURATION'] = True  # Enable field configuration
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
@@ -206,6 +210,10 @@ class LoanApplicationForm(FlaskForm):
         # Dynamically populate product type choices
         self.product_type.choices = [(p.code, f'{p.name} ({p.code})') for p in Product.query.filter_by(active=True).all()]
 
+        # Apply field configurations if enabled
+        if app.config['ENABLE_FIELD_CONFIGURATION']:
+            self._apply_field_configurations()
+
         # Adjust field access based on user role
         if current_user.is_authenticated:
             if current_user.is_maker():
@@ -224,6 +232,45 @@ class LoanApplicationForm(FlaskForm):
                 # Auto-populate author field with current author's username
                 if not self.author.data:
                     self.author.data = current_user.username
+
+    def _apply_field_configurations(self):
+        """Apply field configurations to form fields."""
+        if not app.config['ENABLE_FIELD_CONFIGURATION']:
+            return
+
+        # Get all field configurations
+        field_configs = FieldService.get_all_field_configs()
+
+        # Apply configurations to each field
+        for field_config in field_configs:
+            field_name = field_config.field_name
+            if hasattr(self, field_name):
+                field = getattr(self, field_name)
+
+                # Set visibility
+                if not field_config.is_visible:
+                    if not hasattr(field, 'render_kw') or field.render_kw is None:
+                        field.render_kw = {}
+                    field.render_kw['style'] = 'display: none;'
+
+                # Set required status
+                if not field_config.is_required:
+                    field.validators = [v for v in field.validators if not isinstance(v, DataRequired)]
+
+                # Set editability based on user role
+                if current_user.is_authenticated:
+                    can_edit = False
+                    if current_user.is_maker() and field_config.maker_can_edit:
+                        can_edit = True
+                    elif current_user.is_checker() and field_config.checker_can_edit:
+                        can_edit = True
+                    elif current_user.is_author() and field_config.author_can_edit:
+                        can_edit = True
+
+                    if not can_edit:
+                        if not hasattr(field, 'render_kw') or field.render_kw is None:
+                            field.render_kw = {}
+                        field.render_kw['readonly'] = True
 
 # Form for login
 class LoginForm(FlaskForm):
@@ -381,21 +428,29 @@ def add_loan():
         if current_user.is_maker():
             if form.checker.data or form.author.data:
                 flash('As a Maker, you cannot set Checker or Author fields.', 'danger')
-                return render_template('add_edit.html', form=form, title='Add Loan Application')
+                field_service = FieldService
+                field_service.workflow_service = WorkflowService
+                return render_template('add_edit.html', form=form, title='Add Loan Application', field_service=field_service)
 
         elif current_user.is_checker():
             if form.author.data:
                 flash('As a Checker, you cannot set the Author field.', 'danger')
-                return render_template('add_edit.html', form=form, title='Add Loan Application')
+                field_service = FieldService
+                field_service.workflow_service = WorkflowService
+                return render_template('add_edit.html', form=form, title='Add Loan Application', field_service=field_service)
 
         # Check if save as draft was requested
         if form.save_as_draft.data:
             status = LoanApplication.STATUS_DRAFT
-        # Set initial status based on role
+        # Set initial status based on role and workflow mode
         elif current_user.is_maker():
             status = LoanApplication.STATUS_PENDING_CHECKER
         elif current_user.is_checker():
-            status = LoanApplication.STATUS_PENDING_AUTHOR
+            # In auto mode, checker approval goes straight to approved
+            if WorkflowService.is_auto_mode():
+                status = LoanApplication.STATUS_APPROVED
+            else:
+                status = LoanApplication.STATUS_PENDING_AUTHOR
         else:  # Author
             status = LoanApplication.STATUS_APPROVED
 
@@ -438,7 +493,10 @@ def add_loan():
             db.session.rollback()
             flash(f'Error adding loan application: {str(e)}', 'danger')
 
-    return render_template('add_edit.html', form=form, title='Add Loan Application')
+    # Pass both field service and workflow service to the template
+    field_service = FieldService
+    field_service.workflow_service = WorkflowService
+    return render_template('add_edit.html', form=form, title='Add Loan Application', field_service=field_service)
 
 @app.route('/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
@@ -464,13 +522,17 @@ def edit_loan(id):
 
             if checker_modified or author_modified:
                 flash('As a Maker, you cannot modify Checker or Author fields.', 'danger')
-                return render_template('add_edit.html', form=form, title='Edit Loan Application', loan_application=loan_application)
+                field_service = FieldService
+                field_service.workflow_service = WorkflowService
+                return render_template('add_edit.html', form=form, title='Edit Loan Application', loan_application=loan_application, field_service=field_service)
 
         elif current_user.is_checker():
             # Only check for author field modification if both values are not empty
             if form.author.data and loan_application.author and form.author.data != loan_application.author:
                 flash('As a Checker, you cannot modify the Author field.', 'danger')
-                return render_template('add_edit.html', form=form, title='Edit Loan Application', loan_application=loan_application)
+                field_service = FieldService
+                field_service.workflow_service = WorkflowService
+                return render_template('add_edit.html', form=form, title='Edit Loan Application', loan_application=loan_application, field_service=field_service)
 
         # Update fields
         loan_application.date = form.date.data
@@ -506,7 +568,9 @@ def edit_loan(id):
             # Handle approval or rejection
             elif form.approve.data and form.reject.data:
                 flash('Cannot both approve and reject an application.', 'danger')
-                return render_template('add_edit.html', form=form, title='Edit Loan Application', loan_application=loan_application)
+                field_service = FieldService
+                field_service.workflow_service = WorkflowService
+                return render_template('add_edit.html', form=form, title='Edit Loan Application', loan_application=loan_application, field_service=field_service)
             elif form.approve.data:
                 loan_application.status = LoanApplication.STATUS_APPROVED
                 loan_application.status_changed_at = datetime.utcnow()
@@ -514,7 +578,9 @@ def edit_loan(id):
             elif form.reject.data:
                 if not form.rejection_reason.data:
                     flash('Rejection reason is required when rejecting an application.', 'danger')
-                    return render_template('add_edit.html', form=form, title='Edit Loan Application', loan_application=loan_application)
+                    field_service = FieldService
+                    field_service.workflow_service = WorkflowService
+                    return render_template('add_edit.html', form=form, title='Edit Loan Application', loan_application=loan_application, field_service=field_service)
                 loan_application.status = LoanApplication.STATUS_REJECTED
                 loan_application.rejection_reason = form.rejection_reason.data
                 loan_application.rejected_by = current_user.username
@@ -536,15 +602,25 @@ def edit_loan(id):
                 # Handle approval or rejection
                 elif form.approve.data and form.reject.data:
                     flash('Cannot both approve and reject an application.', 'danger')
-                    return render_template('add_edit.html', form=form, title='Edit Loan Application', loan_application=loan_application)
+                    field_service = FieldService
+                    field_service.workflow_service = WorkflowService
+                    return render_template('add_edit.html', form=form, title='Edit Loan Application', loan_application=loan_application, field_service=field_service)
                 elif form.approve.data:
-                    loan_application.status = LoanApplication.STATUS_PENDING_AUTHOR
-                    loan_application.status_changed_at = datetime.utcnow()
-                    flash('Application approved and forwarded to Author!', 'success')
+                    # In auto mode, checker approval goes straight to approved
+                    if WorkflowService.is_auto_mode():
+                        loan_application.status = LoanApplication.STATUS_APPROVED
+                        loan_application.status_changed_at = datetime.utcnow()
+                        flash('Application approved! (Auto mode: Author stage bypassed)', 'success')
+                    else:
+                        loan_application.status = LoanApplication.STATUS_PENDING_AUTHOR
+                        loan_application.status_changed_at = datetime.utcnow()
+                        flash('Application approved and forwarded to Author!', 'success')
                 elif form.reject.data:
                     if not form.rejection_reason.data:
                         flash('Rejection reason is required when rejecting an application.', 'danger')
-                        return render_template('add_edit.html', form=form, title='Edit Loan Application', loan_application=loan_application)
+                        field_service = FieldService
+                        field_service.workflow_service = WorkflowService
+                        return render_template('add_edit.html', form=form, title='Edit Loan Application', loan_application=loan_application, field_service=field_service)
                     loan_application.status = LoanApplication.STATUS_REJECTED
                     loan_application.rejection_reason = form.rejection_reason.data
                     loan_application.rejected_by = current_user.username
@@ -574,7 +650,10 @@ def edit_loan(id):
             db.session.rollback()
             flash(f'Error updating loan application: {str(e)}', 'danger')
 
-    return render_template('add_edit.html', form=form, title='Edit Loan Application', loan_application=loan_application)
+    # Pass both field service and workflow service to the template
+    field_service = FieldService
+    field_service.workflow_service = WorkflowService
+    return render_template('add_edit.html', form=form, title='Edit Loan Application', loan_application=loan_application, field_service=field_service)
 
 @app.route('/delete/<int:id>', methods=['POST'])
 @login_required
@@ -1435,6 +1514,80 @@ def delete_product(code):
 
     return redirect(url_for('products'))
 
+# Configuration Management Routes
+@app.route('/config/manage')
+@login_required
+@role_required('author')  # Only authors can manage configurations
+def manage_config():
+    # Get current workflow mode
+    workflow_mode = WorkflowService.get_workflow_mode()
+
+    # Create workflow config form
+    workflow_form = WorkflowConfigForm()
+    workflow_form.workflow_mode.data = workflow_mode
+
+    # Create field config form
+    field_form = FieldConfigForm()
+
+    # Get all field configurations
+    field_configs = FieldService.get_all_field_configs()
+
+    return render_template('config/manage.html',
+                           title='Configuration Management',
+                           workflow_form=workflow_form,
+                           field_form=field_form,
+                           field_configs=field_configs)
+
+@app.route('/config/workflow', methods=['POST'])
+@login_required
+@role_required('author')  # Only authors can manage configurations
+def save_workflow_config():
+    form = WorkflowConfigForm()
+
+    if form.validate_on_submit():
+        # Save workflow mode
+        if WorkflowService.set_workflow_mode(form.workflow_mode.data):
+            flash('Workflow configuration saved successfully!', 'success')
+        else:
+            flash('Error saving workflow configuration.', 'danger')
+    else:
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(f'{getattr(form, field).label.text}: {error}', 'danger')
+
+    return redirect(url_for('manage_config'))
+
+@app.route('/config/fields', methods=['POST'])
+@login_required
+@role_required('author')  # Only authors can manage configurations
+def save_field_config():
+    # Get all field IDs from the form
+    field_ids = request.form.getlist('field_ids[]')
+
+    # Update each field configuration
+    for field_id in field_ids:
+        field_id = int(field_id)
+
+        # Get form values for this field
+        is_required = 'is_required_' + str(field_id) in request.form
+        is_visible = 'is_visible_' + str(field_id) in request.form
+        maker_can_edit = 'maker_can_edit_' + str(field_id) in request.form
+        checker_can_edit = 'checker_can_edit_' + str(field_id) in request.form
+        author_can_edit = 'author_can_edit_' + str(field_id) in request.form
+
+        # Update field configuration
+        FieldService.update_field_config(
+            field_id,
+            is_required,
+            is_visible,
+            maker_can_edit,
+            checker_can_edit,
+            author_can_edit
+        )
+
+    flash('Field configurations saved successfully!', 'success')
+    return redirect(url_for('manage_config'))
+
 # Route for exporting productivity report
 @app.route('/export-productivity-report')
 @login_required
@@ -1491,9 +1644,19 @@ def export_productivity_report():
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
 
-# Create all tables
+# Initialize configuration models
+from models.config import init_db, init_default_configs
+from services.field_service import FieldService
+from services.workflow_service import WorkflowService
+
+# Initialize the database reference in the config module
+init_db(db)
+
+# Create all tables including the newly defined configuration models
 with app.app_context():
     db.create_all()
+    # Initialize default configurations
+    init_default_configs()
 
 if __name__ == '__main__':
     app.run(debug=True)
