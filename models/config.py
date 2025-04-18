@@ -314,6 +314,16 @@ def init_default_configs():
     """
     Initialize default configurations if they don't exist.
     """
+    # Check if models are defined
+    if SystemConfig is None or FieldConfig is None:
+        print("Models not defined yet, cannot initialize default configurations.")
+        return
+
+    # Check if db is initialized
+    if db is None:
+        print("Database not initialized yet, cannot initialize default configurations.")
+        return
+
     try:
         # Add default system configs
         for config in get_default_system_configs():
@@ -336,5 +346,6 @@ def init_default_configs():
         db.session.commit()
         print("Default configurations initialized successfully.")
     except Exception as e:
-        db.session.rollback()
+        if db and hasattr(db, 'session'):
+            db.session.rollback()
         print(f"Error initializing default configurations: {str(e)}")

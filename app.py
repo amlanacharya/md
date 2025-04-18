@@ -4,16 +4,19 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from datetime import datetime
 from flask_wtf import FlaskForm
+from flask_wtf.file import FileField, FileRequired, FileAllowed
 from wtforms import StringField, DateField, FloatField, SubmitField, SelectField, PasswordField, BooleanField, TextAreaField
 from wtforms.validators import DataRequired, Optional, Email, EqualTo, Length
 from flask_wtf.csrf import CSRFProtect
 from flask_login import UserMixin, LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from functools import wraps
 import io
 import csv
 import tempfile
 import os
+import pandas as pd
 from excel_utils import export_applications_to_excel, export_distribution_to_excel, export_productivity_report_to_excel
 
 # Import configuration models and services
@@ -342,6 +345,14 @@ class ProductForm(FlaskForm):
     name = StringField('Product Name', validators=[DataRequired(), Length(min=2, max=100)])
     active = BooleanField('Active', default=True)
     submit = SubmitField('Save Product')
+
+# Form for bulk upload
+class BulkUploadForm(FlaskForm):
+    excel_file = FileField('Excel File', validators=[
+        FileRequired(),
+        FileAllowed(['xlsx', 'xls'], 'Excel files only!')
+    ])
+    submit = SubmitField('Upload')
 
 # Routes
 @app.route('/')
@@ -1322,6 +1333,95 @@ def export_cases_maker():
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
 
+# Route for bulk upload
+@app.route('/bulk-upload', methods=['GET', 'POST'])
+@login_required
+def bulk_upload():
+    form = BulkUploadForm()
+
+    if form.validate_on_submit():
+        try:
+            # Save the uploaded file temporarily
+            excel_file = form.excel_file.data
+            excel_data = pd.read_excel(excel_file)
+
+            # Validate the Excel data
+            required_columns = ['application_id', 'customer_name', 'date']
+            missing_columns = [col for col in required_columns if col not in excel_data.columns]
+
+            if missing_columns:
+                flash(f'Missing required columns in Excel file: {", ".join(missing_columns)}', 'danger')
+                return render_template('bulk_upload.html', form=form, title='Bulk Upload')
+
+            # Process the data and create loan applications
+            success_count = 0
+            error_count = 0
+            errors = []
+
+            for index, row in excel_data.iterrows():
+                try:
+                    # Convert date if it's not already a datetime object
+                    application_date = row['date']
+                    if not isinstance(application_date, datetime):
+                        try:
+                            application_date = datetime.strptime(str(application_date), '%Y-%m-%d')
+                        except ValueError:
+                            # Try another common format
+                            try:
+                                application_date = datetime.strptime(str(application_date), '%d-%m-%Y')
+                            except ValueError:
+                                application_date = datetime.now()
+
+                    # Create a new loan application
+                    loan_application = LoanApplication(
+                        date=application_date,
+                        application_id=str(row['application_id']),
+                        customer_name=str(row['customer_name']),
+                        dealer_code=str(row.get('dealer_code', '')),
+                        scheme_name=str(row.get('scheme_name', '')),
+                        branch_location=str(row.get('branch_location', '')),
+                        product_type=str(row.get('product_type', 'PL')),  # Default to PL if not specified
+                        loan_amount=float(row.get('loan_amount', 0)),
+                        payment_amount=float(row.get('payment_amount', 0)),
+                        processing_fee=float(row.get('processing_fee', 0)),
+                        rto=float(row.get('rto', 0)),
+                        vap_amount=float(row.get('vap_amount', 0)),
+                        beneficiary_name=str(row.get('beneficiary_name', '')),
+                        beneficiary_account_number=str(row.get('beneficiary_account_number', '')),
+                        beneficiary_ifsc=str(row.get('beneficiary_ifsc', '')),
+                        bank_name=str(row.get('bank_name', '')),
+                        branch_name=str(row.get('branch_name', '')),
+                        maker=current_user.username,
+                        maker_id=current_user.id,
+                        status=LoanApplication.STATUS_DRAFT  # Always save as draft
+                    )
+
+                    db.session.add(loan_application)
+                    success_count += 1
+                except Exception as e:
+                    error_count += 1
+                    errors.append(f"Row {index+1}: {str(e)}")
+
+            if success_count > 0:
+                db.session.commit()
+                flash(f'Successfully uploaded {success_count} applications as drafts.', 'success')
+
+                if error_count > 0:
+                    flash(f'Failed to upload {error_count} applications. See details below.', 'warning')
+                    for error in errors:
+                        flash(error, 'danger')
+
+                return redirect(url_for('index'))
+            else:
+                db.session.rollback()
+                flash('No applications were uploaded. Please check your Excel file.', 'danger')
+                for error in errors:
+                    flash(error, 'danger')
+        except Exception as e:
+            flash(f'Error processing Excel file: {str(e)}', 'danger')
+
+    return render_template('bulk_upload.html', form=form, title='Bulk Upload')
+
 # Routes for product management
 @app.route('/products')
 @login_required
@@ -1626,6 +1726,12 @@ def save_workflow_config():
 def save_field_config():
     # Get all field IDs from the form
     field_ids = request.form.getlist('field_ids[]')
+    print(f"Debug: save_field_config called with {len(field_ids)} field IDs")
+    print(f"Debug: Form data: {request.form}")
+
+    # Track success/failure for each field
+    success_count = 0
+    failure_count = 0
 
     # Update each field configuration
     for field_id in field_ids:
@@ -1638,8 +1744,20 @@ def save_field_config():
         checker_can_edit = 'checker_can_edit_' + str(field_id) in request.form
         author_can_edit = 'author_can_edit_' + str(field_id) in request.form
 
+        # Get the field configuration to check if it's an essential field
+        field_config = FieldService.get_field_config_by_id(field_id)
+        if field_config and field_config.field_name in ['date', 'application_id']:
+            # Force date and application_id to always be required
+            is_required = True
+            is_visible = True
+            print(f"Debug: Enforcing essential field {field_config.field_name} to be required and visible")
+
+        print(f"Debug: Updating field {field_id}:")
+        print(f"Debug: is_required={is_required}, is_visible={is_visible}")
+        print(f"Debug: maker_can_edit={maker_can_edit}, checker_can_edit={checker_can_edit}, author_can_edit={author_can_edit}")
+
         # Update field configuration
-        FieldService.update_field_config(
+        result = FieldService.update_field_config(
             field_id,
             is_required,
             is_visible,
@@ -1648,7 +1766,41 @@ def save_field_config():
             author_can_edit
         )
 
-    flash('Field configurations saved successfully!', 'success')
+        if result:
+            success_count += 1
+        else:
+            failure_count += 1
+
+    # Verify the changes were saved by re-fetching from the database
+    # Use a new session to avoid any potential session issues
+    print("Debug: Verifying field configurations after update:")
+    try:
+        # Create a new session context to ensure we're getting fresh data
+        with app.app_context():
+            # Clear any cached data
+            db.session.expire_all()
+
+            field_configs = FieldService.get_all_field_configs()
+            for field_config in field_configs:
+                print(f"Debug: Field {field_config.field_name} (ID: {field_config.id}): ")
+                print(f"Debug: required={field_config.is_required}, visible={field_config.is_visible}")
+                print(f"Debug: maker_edit={field_config.maker_can_edit}, checker_edit={field_config.checker_can_edit}, author_edit={field_config.author_can_edit}")
+
+                # Final check to ensure date and application_id are always required
+                if field_config.field_name in ['date', 'application_id'] and not field_config.is_required:
+                    print(f"Debug: Essential field {field_config.field_name} is not required after verification. Fixing...")
+                    field_config.is_required = True
+                    field_config.is_visible = True
+                    db.session.commit()
+                    print(f"Debug: Fixed essential field {field_config.field_name} to be required")
+    except Exception as e:
+        print(f"Debug: Error verifying field configurations: {str(e)}")
+
+    if failure_count > 0:
+        flash(f'Field configurations saved with {failure_count} errors. Please check the logs.', 'warning')
+    else:
+        flash('Field configurations saved successfully!', 'success')
+
     return redirect(url_for('manage_config'))
 
 # Route for exporting productivity report
