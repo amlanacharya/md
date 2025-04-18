@@ -28,19 +28,37 @@ class WorkflowService:
         Returns:
             str: 'auto' or 'manual'
         """
+        # Use direct database access to avoid issues with dynamic models
+        import sqlite3
+        import os
+
+        # Get the current directory
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        parent_dir = os.path.dirname(current_dir)
+
+        # Connect to the database
+        db_path = os.path.join(parent_dir, 'optimus.db')
+        workflow_mode = 'manual'  # Default
+
         try:
-            SystemConfig = _get_system_config()
-            if SystemConfig is None:
-                return 'manual'  # Default to manual mode if model not available
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
 
-            config = SystemConfig.query.filter_by(key='WORKFLOW_MODE').first()
-            if not config:
-                return 'manual'  # Default to manual mode
+            # Check if the system_config table exists
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='system_config'")
+            if cursor.fetchone():
+                # Get workflow mode
+                cursor.execute("SELECT value FROM system_config WHERE key='WORKFLOW_MODE'")
+                result = cursor.fetchone()
+                if result:
+                    workflow_mode = result[0]
+        except sqlite3.Error as e:
+            print(f"SQLite error in get_workflow_mode: {e}")
+        finally:
+            if 'conn' in locals() and conn:
+                conn.close()
 
-            return config.value
-        except Exception as e:
-            print(f"Error getting workflow mode: {str(e)}")
-            return 'manual'  # Default to manual mode on error
+        return workflow_mode
 
     @staticmethod
     def set_workflow_mode(mode):
@@ -53,34 +71,9 @@ class WorkflowService:
         Returns:
             bool: True if successful, False otherwise
         """
-        if mode not in ['auto', 'manual']:
-            return False
-
-        try:
-            SystemConfig = _get_system_config()
-            if SystemConfig is None:
-                print("Cannot set workflow mode: SystemConfig model not available")
-                return False
-
-            config = SystemConfig.query.filter_by(key='WORKFLOW_MODE').first()
-            if not config:
-                config = SystemConfig(key='WORKFLOW_MODE', value=mode)
-                from app import db
-                db.session.add(config)
-            else:
-                config.value = mode
-        except Exception as e:
-            print(f"Error setting workflow mode: {str(e)}")
-            return False
-
-        try:
-            from app import db
-            db.session.commit()
-            return True
-        except Exception:
-            from app import db
-            db.session.rollback()
-            return False
+        # Use direct database access to avoid issues with dynamic models
+        from fix_workflow_mode import update_workflow_mode
+        return update_workflow_mode(mode)
 
     @staticmethod
     def is_auto_mode():
@@ -90,7 +83,37 @@ class WorkflowService:
         Returns:
             bool: True if in auto mode, False if in manual mode
         """
-        return WorkflowService.get_workflow_mode() == 'auto'
+        # Use direct database access to avoid issues with dynamic models
+        import sqlite3
+        import os
+
+        # Get the current directory
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        parent_dir = os.path.dirname(current_dir)
+
+        # Connect to the database
+        db_path = os.path.join(parent_dir, 'optimus.db')
+        workflow_mode = 'manual'  # Default
+
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # Check if the system_config table exists
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='system_config'")
+            if cursor.fetchone():
+                # Get workflow mode
+                cursor.execute("SELECT value FROM system_config WHERE key='WORKFLOW_MODE'")
+                result = cursor.fetchone()
+                if result:
+                    workflow_mode = result[0]
+        except sqlite3.Error as e:
+            print(f"SQLite error in is_auto_mode: {e}")
+        finally:
+            if 'conn' in locals() and conn:
+                conn.close()
+
+        return workflow_mode == 'auto'
 
     @staticmethod
     def get_next_status(current_status, user_role, is_approved=True, is_rejected=False):

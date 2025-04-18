@@ -18,6 +18,7 @@ from excel_utils import export_applications_to_excel, export_distribution_to_exc
 
 # Import configuration models and services
 from forms.config_form import WorkflowConfigForm, FieldConfigForm, SystemConfigForm
+# Note: We'll get SystemConfig through the function below to avoid None issues
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'OADSECRET'
@@ -905,6 +906,11 @@ def distribute_applications():
 @login_required
 @role_required('author')  # Only authors can distribute applications
 def distribute_author_applications():
+    # Check if we're in auto mode - if so, redirect to index with a message
+    if WorkflowService.is_auto_mode():
+        flash('Author distribution is not available in Auto Mode. System is configured to bypass the Author stage.', 'warning')
+        return redirect(url_for('index'))
+
     # Get all available authors with their product expertise
     available_authors = User.query.filter_by(role=ROLE_AUTHOR, available=True).all()
 
@@ -1049,6 +1055,11 @@ def assigned_cases_checker():
 @login_required
 @role_required('author')
 def assigned_cases_author():
+    # Check if we're in auto mode - if so, redirect to index with a message
+    if WorkflowService.is_auto_mode():
+        flash('Author assigned cases view is not available in Auto Mode. System is configured to bypass the Author stage.', 'warning')
+        return redirect(url_for('index'))
+
     # Get all applications assigned to the current author
     assigned_applications = LoanApplication.query.filter_by(
         author_id=current_user.id,
@@ -1101,6 +1112,11 @@ def export_cases_checker():
 @login_required
 @role_required('author')
 def export_cases_author():
+    # Check if we're in auto mode - if so, redirect to index with a message
+    if WorkflowService.is_auto_mode():
+        flash('Author cases export is not available in Auto Mode. System is configured to bypass the Author stage.', 'warning')
+        return redirect(url_for('index'))
+
     # Get all applications assigned to the current author
     assigned_applications = LoanApplication.query.filter_by(
         author_id=current_user.id,
@@ -1164,6 +1180,11 @@ def export_distribution_checker():
 @login_required
 @role_required('author')
 def export_distribution_author():
+    # Check if we're in auto mode - if so, redirect to index with a message
+    if WorkflowService.is_auto_mode():
+        flash('Author distribution export is not available in Auto Mode. System is configured to bypass the Author stage.', 'warning')
+        return redirect(url_for('index'))
+
     # Get all applications that have been distributed to authors
     distributed_applications = LoanApplication.query.filter(
         LoanApplication.author_id.isnot(None),
@@ -1413,7 +1434,8 @@ def reassign_application(app_id):
         application.author = new_user.username
         application.author_id = new_user.id
         # If application is in pending checker status and being assigned to an author, update status
-        if application.status == LoanApplication.STATUS_PENDING_CHECKER:
+        # Only change status to PENDING_AUTHOR if we're in manual mode
+        if application.status == LoanApplication.STATUS_PENDING_CHECKER and not WorkflowService.is_auto_mode():
             application.status = LoanApplication.STATUS_PENDING_AUTHOR
             application.status_changed_at = datetime.utcnow()
 
@@ -1519,8 +1541,36 @@ def delete_product(code):
 @login_required
 @role_required('author')  # Only authors can manage configurations
 def manage_config():
-    # Get current workflow mode
-    workflow_mode = WorkflowService.get_workflow_mode()
+    # Get current workflow mode using direct database access
+    import sqlite3
+    import os
+
+    # Get the current directory
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Connect to the database
+    db_path = os.path.join(current_dir, 'optimus.db')
+    workflow_mode = 'manual'  # Default
+
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Check if the system_config table exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='system_config'")
+        if cursor.fetchone():
+            # Get workflow mode
+            cursor.execute("SELECT value FROM system_config WHERE key='WORKFLOW_MODE'")
+            result = cursor.fetchone()
+            if result:
+                workflow_mode = result[0]
+    except sqlite3.Error as e:
+        print(f"SQLite error: {e}")
+    finally:
+        if conn:
+            conn.close()
+
+    print(f"Debug: Current workflow mode from direct DB access: {workflow_mode}")
 
     # Create workflow config form
     workflow_form = WorkflowConfigForm()
@@ -1544,13 +1594,26 @@ def manage_config():
 def save_workflow_config():
     form = WorkflowConfigForm()
 
+    print(f"Debug: save_workflow_config called")
+    print(f"Debug: Form data: {request.form}")
+    print(f"Debug: CSRF token valid: {form.csrf_token.validate(form)}")
+
     if form.validate_on_submit():
-        # Save workflow mode
-        if WorkflowService.set_workflow_mode(form.workflow_mode.data):
+        print(f"Debug: Form validated successfully")
+        print(f"Debug: Selected workflow mode: {form.workflow_mode.data}")
+
+        # Use our direct fix script to update the workflow mode
+        from fix_workflow_mode import update_workflow_mode
+
+        if update_workflow_mode(form.workflow_mode.data):
+            print(f"Debug: update_workflow_mode returned True")
             flash('Workflow configuration saved successfully!', 'success')
         else:
+            print(f"Debug: update_workflow_mode returned False")
             flash('Error saving workflow configuration.', 'danger')
     else:
+        print(f"Debug: Form validation failed")
+        print(f"Debug: Form errors: {form.errors}")
         for field, errors in form.errors.items():
             for error in errors:
                 flash(f'{getattr(form, field).label.text}: {error}', 'danger')
@@ -1658,5 +1721,19 @@ with app.app_context():
     # Initialize default configurations
     init_default_configs()
 
+# Make WorkflowService available in templates
+app.config['WORKFLOW_SERVICE'] = WorkflowService
+
+# API route to get the current workflow mode
+@app.route('/api/workflow-mode')
+def get_workflow_mode_api():
+    mode = WorkflowService.get_workflow_mode()
+    return jsonify({
+        'mode': mode,
+        'is_auto': mode == 'auto',
+        'timestamp': datetime.now().isoformat()
+    })
+
+# Run the app
 if __name__ == '__main__':
     app.run(debug=True)

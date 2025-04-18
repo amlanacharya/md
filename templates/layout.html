@@ -87,9 +87,15 @@
                             </a></li>
                             {% endif %}
                             {% if current_user.is_author() %}
+                            {% set workflow_service = namespace(is_auto_mode=False) %}
+                            {% if config['WORKFLOW_SERVICE'] %}
+                                {% set workflow_service.is_auto_mode = config['WORKFLOW_SERVICE'].is_auto_mode() %}
+                            {% endif %}
+                            {% if not workflow_service.is_auto_mode %}
                             <li><a class="dropdown-item" href="{{ url_for('distribute_author_applications') }}">
                                 <i class="bi bi-arrow-down-up"></i> Distribute to Authors
                             </a></li>
+                            {% endif %}
                             {% endif %}
                         </ul>
                     </li>
@@ -112,12 +118,18 @@
                             </a></li>
                             {% endif %}
                             {% if current_user.is_author() %}
+                            {% set workflow_service = namespace(is_auto_mode=False) %}
+                            {% if config['WORKFLOW_SERVICE'] %}
+                                {% set workflow_service.is_auto_mode = config['WORKFLOW_SERVICE'].is_auto_mode() %}
+                            {% endif %}
+                            {% if not workflow_service.is_auto_mode %}
                             <li><a class="dropdown-item" href="{{ url_for('export_cases_author') }}">
                                 <i class="bi bi-file-earmark-excel"></i> Export My Cases
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('export_distribution_author') }}">
                                 <i class="bi bi-file-earmark-excel"></i> Author Distribution Report
                             </a></li>
+                            {% endif %}
                             <li><a class="dropdown-item" href="{{ url_for('export_productivity_report') }}">
                                 <i class="bi bi-file-earmark-excel"></i> Productivity Report
                             </a></li>
@@ -151,6 +163,15 @@
                 </ul>
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
+                    <!-- Workflow Mode Indicator -->
+                    <li class="nav-item me-3">
+                        <div class="d-flex align-items-center h-100">
+                            <span id="workflow-mode-indicator" class="badge rounded-pill" style="font-size: 0.8rem;">
+                                <i class="bi bi-gear-fill me-1"></i>
+                                <span id="workflow-mode-text">Loading...</span>
+                            </span>
+                        </div>
+                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="bi bi-person-circle"></i> {{ current_user.username }}
@@ -222,6 +243,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/realtime-updates.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme-switcher.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/workflow-mode-indicator.js') }}"></script>
 
     <!-- Common JavaScript for UI enhancements -->
     <script>
